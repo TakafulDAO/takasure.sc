@@ -1,0 +1,507 @@
+<mxfile host="65bd71144e">
+    <diagram id="takasure-architecture" name="Takasure Protocol Architecture">
+        <mxGraphModel dx="1809" dy="744" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="4200" pageHeight="3400" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="title" value="&lt;b&gt;Takasure Protocol - Contracts Architecture&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;fontSize=22;" parent="1" vertex="1">
+                    <mxGeometry x="850" y="20" width="500" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="grp_managers" value="Managers" style="rounded=1;fillColor=#E3F2FD;strokeColor=#1565C0;fontStyle=1;fontSize=14;verticalAlign=top;spacingTop=5;container=1;collapsible=0;" parent="1" vertex="1">
+                    <mxGeometry x="100" y="80" width="800" height="170" as="geometry"/>
+                </mxCell>
+                <mxCell id="addressmgr" value="&lt;b&gt;AddressManager&lt;/b&gt; (UUPS)&lt;hr size=&quot;1&quot;&gt;&lt;font size=&quot;1&quot;&gt;Protocol Address Registry&lt;br&gt;Role Management (time-delayed)&lt;br&gt;BenefitModule Deployer (BeaconProxy)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1565C0;fontSize=11;verticalAlign=top;" parent="grp_managers" vertex="1">
+                    <mxGeometry x="40" y="30" width="300" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="modulemgr" value="&lt;b&gt;ModuleManager&lt;/b&gt; (UUPS)&lt;hr size=&quot;1&quot;&gt;&lt;font size=&quot;1&quot;&gt;Module State Tracking&lt;br&gt;(Enabled / Disabled / Paused / Deprecated)&lt;br&gt;Module Validation&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1565C0;fontSize=11;verticalAlign=top;" parent="grp_managers" vertex="1">
+                    <mxGeometry x="460" y="30" width="300" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_am_mm" value="registers modules" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#1565C0;fontSize=9;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="grp_managers" source="addressmgr" target="modulemgr" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="grp_tokens" value="Tokens &amp; Referrals" style="rounded=1;fillColor=#F3E5F5;strokeColor=#7B1FA2;fontStyle=1;fontSize=14;verticalAlign=top;spacingTop=5;container=1;collapsible=0;" parent="1" vertex="1">
+                    <mxGeometry x="1050" y="80" width="550" height="170" as="geometry"/>
+                </mxCell>
+                <mxCell id="revshare_nft" value="&lt;b&gt;RevShareNFT&lt;/b&gt; (ERC721, UUPS)&lt;hr size=&quot;1&quot;&gt;&lt;font size=&quot;1&quot;&gt;Max Supply: 8,820&lt;br&gt;Pioneer Mint Timestamps&lt;br&gt;Transfer Lock Period&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#7B1FA2;fontSize=11;verticalAlign=top;" parent="grp_tokens" vertex="1">
+                    <mxGeometry x="25" y="30" width="220" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="referral_gw" value="&lt;b&gt;ReferralGateway&lt;/b&gt; (UUPS)&lt;hr size=&quot;1&quot;&gt;&lt;font size=&quot;1&quot;&gt;Pre-Join (tDAO)&lt;br&gt;Coupons &amp;amp; Discounts&lt;br&gt;Referral Tracking | KYC Status&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#7B1FA2;fontSize=11;verticalAlign=top;" parent="grp_tokens" vertex="1">
+                    <mxGeometry x="295" y="30" width="220" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="module_impl" value="&lt;b&gt;ModuleImplementation&lt;/b&gt; (abstract)&lt;hr size=&quot;1&quot;&gt;&lt;font size=&quot;1&quot;&gt;onlyContract / onlyRole / onlyType&lt;br&gt;IAddressManager reference&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCEDC8;strokeColor=#33691E;fontSize=11;verticalAlign=top;dashed=1;" parent="1" vertex="1">
+                    <mxGeometry x="100" y="300" width="280" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_mi_am" value="resolve addresses &amp; roles" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#555;dashed=1;fontSize=9;entryX=0.173;entryY=1.011;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" edge="1" target="grp_managers">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="240" y="300" as="sourcePoint"/>
+                        <mxPoint x="240" y="250" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="grp_core" value="Core Protocol" style="rounded=1;fillColor=#FFF3E0;strokeColor=#E65100;fontStyle=1;fontSize=14;verticalAlign=top;spacingTop=5;container=1;collapsible=0;" parent="1" vertex="1">
+                    <mxGeometry x="500" y="290" width="600" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="takasure_reserve" value="&lt;b&gt;TakasureReserve&lt;/b&gt; (UUPS)&lt;hr size=&quot;1&quot;&gt;&lt;font size=&quot;1&quot;&gt;Member Data &amp;amp; Balances | Fund / Claim / Total Reserves&lt;br&gt;Cash Flow Tracking (monthly/daily) | Loss Ratios &amp;amp; Multipliers | RPOOL&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE0B2;strokeColor=#E65100;fontSize=11;verticalAlign=top;" parent="grp_core" vertex="1">
+                    <mxGeometry x="25" y="30" width="550" height="75" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_am_core" value="resolve addresses" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#555;fontSize=9;" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="600" y="250" as="sourcePoint"/>
+                        <mxPoint x="600" y="290" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_mm_core" value="validate callers" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#555;dashed=1;fontSize=9;entryX=-0.004;entryY=0.569;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" edge="1" target="grp_core">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="430" y="251" as="sourcePoint"/>
+                        <mxPoint x="900" y="290" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="430" y="360"/>
+                            <mxPoint x="490" y="360"/>
+                            <mxPoint x="490" y="358"/>
+                        </Array>
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="grp_modules" value="Modules" style="rounded=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontStyle=1;fontSize=14;verticalAlign=top;spacingTop=5;container=1;collapsible=0;" parent="1" vertex="1">
+                    <mxGeometry x="100" y="470" width="1760" height="310" as="geometry"/>
+                </mxCell>
+                <mxCell id="sub_mod" value="&lt;b&gt;Subscription&lt;br&gt;Module&lt;/b&gt; (UUPS)&lt;hr size=&quot;1&quot;&gt;&lt;font size=&quot;1&quot;&gt;Association Plans&lt;br&gt;Initial Subscriptions&lt;br&gt;Refund Handling&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=11;verticalAlign=top;" parent="grp_modules" vertex="1">
+                    <mxGeometry x="20" y="35" width="180" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="kyc_mod" value="&lt;b&gt;KYCModule&lt;/b&gt;&lt;br&gt;(UUPS)&lt;hr size=&quot;1&quot;&gt;&lt;font size=&quot;1&quot;&gt;KYC Verification&lt;br&gt;Member Activation&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=11;verticalAlign=top;" parent="grp_modules" vertex="1">
+                    <mxGeometry x="240" y="35" width="160" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="main_storage" value="&lt;b&gt;MainStorage&lt;br&gt;Module&lt;/b&gt; (UUPS)&lt;hr size=&quot;1&quot;&gt;&lt;font size=&quot;1&quot;&gt;Association Members&lt;br&gt;Benefit Members&lt;br&gt;Generic Storage&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=11;verticalAlign=top;" parent="grp_modules" vertex="1">
+                    <mxGeometry x="440" y="35" width="180" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="benefit_mod" value="&lt;b&gt;BenefitModule&lt;/b&gt;&lt;br&gt;(BeaconProxy)&lt;hr size=&quot;1&quot;&gt;&lt;font size=&quot;1&quot;&gt;Member Joins&lt;br&gt;Fee Calculation&lt;br&gt;Contribution Transfer&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=11;verticalAlign=top;" parent="grp_modules" vertex="1">
+                    <mxGeometry x="660" y="35" width="180" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="submgmt_mod" value="&lt;b&gt;SubscriptionMgmt&lt;br&gt;Module&lt;/b&gt; (UUPS)&lt;hr size=&quot;1&quot;&gt;&lt;font size=&quot;1&quot;&gt;Recurring Payments&lt;br&gt;Cancellations&lt;br&gt;Reinstatements&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=11;verticalAlign=top;" parent="grp_modules" vertex="1">
+                    <mxGeometry x="880" y="35" width="180" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="referral_rewards" value="&lt;b&gt;ReferralRewards&lt;br&gt;Module&lt;/b&gt; (UUPS)&lt;hr size=&quot;1&quot;&gt;&lt;font size=&quot;1&quot;&gt;Parent-Child Relationships&lt;br&gt;Tiered Rewards (4 layers)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=11;verticalAlign=top;" parent="grp_modules" vertex="1">
+                    <mxGeometry x="1100" y="35" width="180" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="revshare_mod" value="&lt;b&gt;RevShareModule&lt;/b&gt;&lt;br&gt;(UUPS)&lt;hr size=&quot;1&quot;&gt;&lt;font size=&quot;1&quot;&gt;Revenue Distribution&lt;br&gt;Pioneers 75% / Takadao 25%&lt;br&gt;Per-NFT Revenue Tracking&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=11;verticalAlign=top;" parent="grp_modules" vertex="1">
+                    <mxGeometry x="1320" y="35" width="200" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="revenue_mod" value="&lt;b&gt;RevenueModule&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=11;" parent="grp_modules" vertex="1">
+                    <mxGeometry x="1560" y="70" width="140" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="values_hook" value="&lt;b&gt;ReserveAndMemberValuesHook&lt;/b&gt; &lt;font size=&quot;1&quot;&gt;(abstract)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F57F17;fontSize=10;dashed=1;" parent="grp_modules" vertex="1">
+                    <mxGeometry x="20" y="249" width="260" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="member_payment" value="&lt;b&gt;MemberPaymentFlow&lt;/b&gt; &lt;font size=&quot;1&quot;&gt;Payment processing&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F57F17;fontSize=10;dashed=1;" parent="grp_modules" vertex="1">
+                    <mxGeometry x="320" y="249" width="220" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="parent_rewards_h" value="&lt;b&gt;ParentRewards&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F57F17;fontSize=10;dashed=1;" parent="grp_modules" vertex="1">
+                    <mxGeometry x="580" y="247" width="140" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_sub_kyc" value="verify identity" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#2E7D32;fontSize=8;exitX=1;exitY=0.4;exitDx=0;exitDy=0;entryX=0;entryY=0.4;entryDx=0;entryDy=0;" edge="1" parent="grp_modules" source="sub_mod" target="kyc_mod">
+                    <mxGeometry y="-13" relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_kyc_ms" value="activate" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#2E7D32;fontSize=8;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="grp_modules" source="kyc_mod" target="main_storage" edge="1">
+                    <mxGeometry y="-10" relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_bm_ms" value="read/write members" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#2E7D32;fontSize=8;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="grp_modules" source="benefit_mod" target="main_storage" edge="1">
+                    <mxGeometry y="10" relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_bm_kyc" value="verify identity" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#2E7D32;fontSize=8;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.534;exitY=-0.008;exitDx=0;exitDy=0;exitPerimeter=0;" parent="grp_modules" source="benefit_mod" target="kyc_mod" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="660" y="60" as="sourcePoint"/>
+                        <mxPoint x="400" y="60" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="756" y="20"/>
+                            <mxPoint x="320" y="20"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_sub_ms" value="manage members" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#2E7D32;fontSize=8;exitX=0.699;exitY=1.003;exitDx=0;exitDy=0;exitPerimeter=0;" edge="1" parent="grp_modules" source="sub_mod" target="main_storage">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="200" y="130" as="sourcePoint"/>
+                        <mxPoint x="440" y="90" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="146" y="180"/>
+                            <mxPoint x="499" y="180"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_bm_rr" value="compute rewards" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#2E7D32;fontSize=8;exitX=0.459;exitY=1.009;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.359;entryY=0.998;entryDx=0;entryDy=0;entryPerimeter=0;" parent="grp_modules" source="benefit_mod" target="referral_rewards" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="840" y="130" as="sourcePoint"/>
+                        <mxPoint x="1100" y="100" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="743" y="185"/>
+                            <mxPoint x="1165" y="185"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_sub_rr" value="distribute rewards" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#2E7D32;fontSize=8;exitX=0.179;exitY=1.003;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.612;entryY=1.006;entryDx=0;entryDy=0;entryPerimeter=0;" parent="grp_modules" source="sub_mod" target="referral_rewards" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="200" y="140" as="sourcePoint"/>
+                        <mxPoint x="1100" y="120" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="52" y="220"/>
+                            <mxPoint x="1210" y="220"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_sub_rev" value="track revenue" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#2E7D32;fontSize=8;exitX=0.432;exitY=0.994;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="grp_modules" source="sub_mod" target="revenue_mod" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="200" y="150" as="sourcePoint"/>
+                        <mxPoint x="1560" y="90" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="98" y="200"/>
+                            <mxPoint x="1630" y="200"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_bm_tr" value="update reserve (BenefitModule)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#E65100;fontSize=9;entryX=1;entryY=0.25;entryDx=0;entryDy=0;" parent="1" edge="1" target="grp_core">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1860" y="540" as="sourcePoint"/>
+                        <mxPoint x="1100" y="340" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="1900" y="540"/>
+                            <mxPoint x="1900" y="320"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_sub_tr" value="store contributions (SubscriptionModule)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#E65100;fontSize=9;" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1860" y="570" as="sourcePoint"/>
+                        <mxPoint x="1100" y="340" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="1930" y="570"/>
+                            <mxPoint x="1930" y="340"/>
+                            <mxPoint x="1101" y="340"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_submgmt_tr" value="recurring payments (SubMgmtModule)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#E65100;fontSize=9;entryX=0.999;entryY=0.548;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" edge="1" target="grp_core">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1860" y="600" as="sourcePoint"/>
+                        <mxPoint x="1100" y="380" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="1960" y="600"/>
+                            <mxPoint x="1960" y="356"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_rg_sub" value="join subscription" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#7B1FA2;fontSize=9;" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1500" y="250" as="sourcePoint"/>
+                        <mxPoint x="200" y="470" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="1500" y="440"/>
+                            <mxPoint x="200" y="440"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_rsm_nft" value="query NFT holdings" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#7B1FA2;fontSize=9;" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1860" y="520" as="sourcePoint"/>
+                        <mxPoint x="1200" y="250" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="1870" y="520"/>
+                            <mxPoint x="1870" y="265"/>
+                            <mxPoint x="1200" y="265"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_am_bm" value="register modules" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#1565C0;dashed=1;fontSize=9;exitX=-0.002;exitY=0.574;exitDx=0;exitDy=0;exitPerimeter=0;" parent="1" edge="1" source="grp_managers">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="100" y="200" as="sourcePoint"/>
+                        <mxPoint x="100" y="540" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="30" y="178"/>
+                            <mxPoint x="30" y="540"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="grp_savefunds" value="SaveFunds Investment" style="rounded=1;fillColor=#FCE4EC;strokeColor=#C62828;fontStyle=1;fontSize=14;verticalAlign=top;spacingTop=5;container=1;collapsible=0;" parent="1" vertex="1">
+                    <mxGeometry x="100" y="840" width="1200" height="230" as="geometry"/>
+                </mxCell>
+                <mxCell id="sf_vault" value="&lt;b&gt;SFVault&lt;/b&gt; (ERC4626, UUPS)&lt;hr size=&quot;1&quot;&gt;&lt;font size=&quot;1&quot;&gt;USDC Deposits&lt;br&gt;Fee Structure (Mgmt + Performance)&lt;br&gt;TVL Caps&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8BBD0;strokeColor=#C62828;fontSize=11;verticalAlign=top;" parent="grp_savefunds" vertex="1">
+                    <mxGeometry x="25" y="35" width="240" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="sf_aggregator" value="&lt;b&gt;SFStrategyAggregator&lt;/b&gt; (UUPS)&lt;hr size=&quot;1&quot;&gt;&lt;font size=&quot;1&quot;&gt;Multi-Strategy Routing&lt;br&gt;Target Weights (BPS)&lt;br&gt;Emergency Exits&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8BBD0;strokeColor=#C62828;fontSize=11;verticalAlign=top;" parent="grp_savefunds" vertex="1">
+                    <mxGeometry x="330" y="35" width="240" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="sf_univ3" value="&lt;b&gt;SFUniswapV3Strategy&lt;/b&gt; (UUPS)&lt;hr size=&quot;1&quot;&gt;&lt;font size=&quot;1&quot;&gt;LP Position Management&lt;br&gt;Rebalancing&lt;br&gt;Swaps via Universal Router&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8BBD0;strokeColor=#C62828;fontSize=11;verticalAlign=top;" parent="grp_savefunds" vertex="1">
+                    <mxGeometry x="635" y="35" width="240" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="sf_twap" value="&lt;b&gt;SFTwapValuator&lt;/b&gt;&lt;br&gt;&lt;font size=&quot;1&quot;&gt;TWAP / Spot Pricing&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8BBD0;strokeColor=#C62828;fontSize=11;" parent="grp_savefunds" vertex="1">
+                    <mxGeometry x="940" y="50" width="190" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="sf_lens_grp" value="Lens (View Contracts)" style="rounded=1;fillColor=#FFEEF3;strokeColor=#C62828;fontStyle=1;fontSize=10;verticalAlign=top;container=1;collapsible=0;" parent="grp_savefunds" vertex="1">
+                    <mxGeometry x="25" y="160" width="1100" height="55" as="geometry"/>
+                </mxCell>
+                <mxCell id="sf_lens_c" value="SFLens" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8BBD0;strokeColor=#C62828;fontSize=9;" parent="sf_lens_grp" vertex="1">
+                    <mxGeometry x="20" y="25" width="100" height="22" as="geometry"/>
+                </mxCell>
+                <mxCell id="sf_vlens" value="SFVaultLens" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8BBD0;strokeColor=#C62828;fontSize=9;" parent="sf_lens_grp" vertex="1">
+                    <mxGeometry x="160" y="25" width="120" height="22" as="geometry"/>
+                </mxCell>
+                <mxCell id="sf_aglens" value="SFStrategyAggregatorLens" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8BBD0;strokeColor=#C62828;fontSize=9;" parent="sf_lens_grp" vertex="1">
+                    <mxGeometry x="330" y="25" width="170" height="22" as="geometry"/>
+                </mxCell>
+                <mxCell id="sf_unilens" value="SFUniswapV3StrategyLens" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8BBD0;strokeColor=#C62828;fontSize=9;" parent="sf_lens_grp" vertex="1">
+                    <mxGeometry x="550" y="25" width="170" height="22" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_v_ag" value="route funds" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#C62828;fontSize=9;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="grp_savefunds" source="sf_vault" target="sf_aggregator" edge="1">
+                    <mxGeometry x="0.0769" y="-15" relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_ag_uni" value="allocate capital" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#C62828;fontSize=9;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="grp_savefunds" source="sf_aggregator" target="sf_univ3" edge="1">
+                    <mxGeometry x="-0.0769" y="-15" relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_uni_twap" value="price quote" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#C62828;fontSize=9;exitX=0.998;exitY=0.385;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitPerimeter=0;" parent="grp_savefunds" source="sf_univ3" target="sf_twap" edge="1">
+                    <mxGeometry x="-0.0078" y="-7" relative="1" as="geometry">
+                        <mxPoint x="-4" y="6" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="grp_chainlink" value="Chainlink Integration" style="rounded=1;fillColor=#ECEFF1;strokeColor=#37474F;fontStyle=1;fontSize=13;verticalAlign=top;spacingTop=5;container=1;collapsible=0;" parent="1" vertex="1">
+                    <mxGeometry x="1400" y="840" width="500" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="auto_runner" value="&lt;b&gt;AutomationRunner&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CFD8DC;strokeColor=#37474F;fontSize=10;" parent="grp_chainlink" vertex="1">
+                    <mxGeometry x="15" y="35" width="140" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="ccip_sender" value="&lt;b&gt;CCIPSender&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CFD8DC;strokeColor=#37474F;fontSize=10;" parent="grp_chainlink" vertex="1">
+                    <mxGeometry x="180" y="35" width="130" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="ccip_receiver" value="&lt;b&gt;CCIPReceiver&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CFD8DC;strokeColor=#37474F;fontSize=10;" parent="grp_chainlink" vertex="1">
+                    <mxGeometry x="340" y="35" width="130" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_ar_v" value="trigger invest" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#37474F;fontSize=9;" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1400" y="890" as="sourcePoint"/>
+                        <mxPoint x="1300" y="890" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="2" style="edgeStyle=none;html=1;" edge="1" parent="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1900" y="1019.9411764705883" as="targetPoint"/>
+                        <mxPoint x="1900" y="1020" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="grp_helpers" value="Helpers &amp; Libraries" style="rounded=1;fillColor=#FFFDE7;strokeColor=#F57F17;fontStyle=1;fontSize=13;verticalAlign=top;spacingTop=5;container=1;collapsible=0;" parent="1" vertex="1">
+                    <mxGeometry x="1400" y="980" width="500" height="160" as="geometry"/>
+                </mxCell>
+                <mxCell id="reserve_math" value="&lt;b&gt;ReserveMathAlgorithms&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F57F17;fontSize=9;" parent="grp_helpers" vertex="1">
+                    <mxGeometry x="15" y="30" width="180" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="cashflow_algo" value="&lt;b&gt;CashFlowAlgorithms&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F57F17;fontSize=9;" parent="grp_helpers" vertex="1">
+                    <mxGeometry x="220" y="30" width="160" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="addr_states" value="&lt;b&gt;AddressAndStates&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F57F17;fontSize=9;" parent="grp_helpers" vertex="1">
+                    <mxGeometry x="15" y="65" width="140" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="roles_lib" value="&lt;b&gt;Roles&lt;/b&gt; &lt;font size=&quot;1&quot;&gt;(OPERATOR, DAO_MULTISIG, KYC_PROVIDER, PAUSE_GUARDIAN, BACKEND_ADMIN, KEEPER)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F57F17;fontSize=9;" parent="grp_helpers" vertex="1">
+                    <mxGeometry x="175" y="65" width="310" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="events_lib" value="&lt;b&gt;TakasureEvents&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F57F17;fontSize=9;" parent="grp_helpers" vertex="1">
+                    <mxGeometry x="15" y="100" width="120" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="constants_lib" value="&lt;b&gt;ModuleConstants&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F57F17;fontSize=9;" parent="grp_helpers" vertex="1">
+                    <mxGeometry x="150" y="100" width="120" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="errors_lib" value="&lt;b&gt;ModuleErrors&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F57F17;fontSize=9;" parent="grp_helpers" vertex="1">
+                    <mxGeometry x="285" y="100" width="100" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="uni_math" value="&lt;b&gt;UniswapV3MathHelper&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F57F17;fontSize=9;" parent="grp_helpers" vertex="1">
+                    <mxGeometry x="15" y="130" width="150" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_tr_helpers" value="uses libraries" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#F57F17;dashed=1;fontSize=9;entryX=1.005;entryY=0.2;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" edge="1" target="grp_helpers">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1100" y="380" as="sourcePoint"/>
+                        <mxPoint x="1400" y="1020" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="2000" y="380"/>
+                            <mxPoint x="2000" y="1012"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="grp_types" value="Types &amp; Enums" style="rounded=1;fillColor=#E0F7FA;strokeColor=#00838F;fontStyle=1;fontSize=13;verticalAlign=top;spacingTop=5;container=1;collapsible=0;" parent="1" vertex="1">
+                    <mxGeometry x="100" y="1120" width="1200" height="75" as="geometry"/>
+                </mxCell>
+                <mxCell id="type_members" value="&lt;b&gt;Members.sol&lt;/b&gt; &lt;font size=&quot;1&quot;&gt;PrepaidMember, AssociationMember, BenefitMember&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B2EBF2;strokeColor=#00838F;fontSize=9;" parent="grp_types" vertex="1">
+                    <mxGeometry x="10" y="30" width="220" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="type_reserve" value="&lt;b&gt;Reserve.sol&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B2EBF2;strokeColor=#00838F;fontSize=9;" parent="grp_types" vertex="1">
+                    <mxGeometry x="240" y="30" width="100" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="type_states" value="&lt;b&gt;States.sol&lt;/b&gt; &lt;font size=&quot;1&quot;&gt;ModuleState, MemberState&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B2EBF2;strokeColor=#00838F;fontSize=9;" parent="grp_types" vertex="1">
+                    <mxGeometry x="350" y="30" width="170" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="type_cash" value="&lt;b&gt;Cash.sol&lt;/b&gt; &lt;font size=&quot;1&quot;&gt;CostTypes, CashFlowVars, FeeType&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B2EBF2;strokeColor=#00838F;fontSize=9;" parent="grp_types" vertex="1">
+                    <mxGeometry x="530" y="30" width="200" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="type_managers" value="&lt;b&gt;Managers.sol&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B2EBF2;strokeColor=#00838F;fontSize=9;" parent="grp_types" vertex="1">
+                    <mxGeometry x="740" y="30" width="110" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="type_strategies" value="&lt;b&gt;Strategies.sol&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B2EBF2;strokeColor=#00838F;fontSize=9;" parent="grp_types" vertex="1">
+                    <mxGeometry x="860" y="30" width="110" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="grp_external" value="External Protocols" style="rounded=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;fontStyle=1;fontSize=13;verticalAlign=top;spacingTop=5;container=1;collapsible=0;" parent="1" vertex="1">
+                    <mxGeometry x="100" y="1240" width="800" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="ext_uniswap" value="&lt;b&gt;Uniswap V3&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEEEEE;strokeColor=#9E9E9E;fontSize=10;" parent="grp_external" vertex="1">
+                    <mxGeometry x="15" y="28" width="140" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="ext_usdc" value="&lt;b&gt;USDC Token&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEEEEE;strokeColor=#9E9E9E;fontSize=10;" parent="grp_external" vertex="1">
+                    <mxGeometry x="180" y="28" width="110" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="ext_permit2" value="&lt;b&gt;Permit2&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEEEEE;strokeColor=#9E9E9E;fontSize=10;" parent="grp_external" vertex="1">
+                    <mxGeometry x="435" y="28" width="90" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="ext_chainlink" value="&lt;b&gt;Chainlink&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEEEEE;strokeColor=#9E9E9E;fontSize=10;" parent="grp_external" vertex="1">
+                    <mxGeometry x="310" y="28" width="110" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_sf_uni" value="manage LPs" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9E9E9E;fontSize=9;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" parent="1" edge="1" source="grp_savefunds">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="200" y="1070" as="sourcePoint"/>
+                        <mxPoint x="100" y="1280" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint y="955"/>
+                            <mxPoint y="1280"/>
+                            <mxPoint x="100" y="1280"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_sf_usdc" value="user funds" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9E9E9E;fontSize=9;exitX=-0.002;exitY=0.611;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.288;entryY=-0.008;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" edge="1" target="grp_external" source="grp_savefunds">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="430" y="1070" as="sourcePoint"/>
+                        <mxPoint x="430" y="1240" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="40" y="981"/>
+                            <mxPoint x="40" y="1210"/>
+                            <mxPoint x="330" y="1210"/>
+                            <mxPoint x="330" y="1239"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_tr_usdc" value="hold funds" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9E9E9E;fontSize=9;entryX=0.313;entryY=-0.024;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" edge="1" target="grp_external">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1100" y="400" as="sourcePoint"/>
+                        <mxPoint x="500" y="1240" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="2040" y="400"/>
+                            <mxPoint x="2040" y="1210"/>
+                            <mxPoint x="350" y="1210"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_ccip_ext" value="cross-chain" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9E9E9E;fontSize=9;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" parent="1" edge="1" source="grp_chainlink">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1700" y="940" as="sourcePoint"/>
+                        <mxPoint x="480" y="1240" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="1940" y="890"/>
+                            <mxPoint x="1940" y="1220"/>
+                            <mxPoint x="480" y="1220"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="legend" value="" style="rounded=1;fillColor=#FFFFFF;strokeColor=#333333;container=1;collapsible=0;" parent="1" vertex="1">
+                    <mxGeometry x="1050" y="1240" width="280" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend_title" value="&lt;b&gt;Legend&lt;/b&gt;" style="text;html=1;align=center;fontSize=12;" parent="legend" vertex="1">
+                    <mxGeometry x="90" y="3" width="100" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="l1" value="" style="rounded=1;fillColor=#BBDEFB;strokeColor=#1565C0;" parent="legend" vertex="1">
+                    <mxGeometry x="10" y="28" width="16" height="12" as="geometry"/>
+                </mxCell>
+                <mxCell id="l1t" value="Managers" style="text;html=1;fontSize=9;" parent="legend" vertex="1">
+                    <mxGeometry x="30" y="25" width="55" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="l2" value="" style="rounded=1;fillColor=#FFE0B2;strokeColor=#E65100;" parent="legend" vertex="1">
+                    <mxGeometry x="10" y="44" width="16" height="12" as="geometry"/>
+                </mxCell>
+                <mxCell id="l2t" value="Core" style="text;html=1;fontSize=9;" parent="legend" vertex="1">
+                    <mxGeometry x="30" y="41" width="40" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="l3" value="" style="rounded=1;fillColor=#C8E6C9;strokeColor=#2E7D32;" parent="legend" vertex="1">
+                    <mxGeometry x="10" y="60" width="16" height="12" as="geometry"/>
+                </mxCell>
+                <mxCell id="l3t" value="Modules" style="text;html=1;fontSize=9;" parent="legend" vertex="1">
+                    <mxGeometry x="30" y="57" width="50" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="l4" value="" style="rounded=1;fillColor=#F8BBD0;strokeColor=#C62828;" parent="legend" vertex="1">
+                    <mxGeometry x="10" y="76" width="16" height="12" as="geometry"/>
+                </mxCell>
+                <mxCell id="l4t" value="SaveFunds" style="text;html=1;fontSize=9;" parent="legend" vertex="1">
+                    <mxGeometry x="30" y="73" width="60" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="l5" value="" style="rounded=1;fillColor=#E1BEE7;strokeColor=#7B1FA2;" parent="legend" vertex="1">
+                    <mxGeometry x="100" y="28" width="16" height="12" as="geometry"/>
+                </mxCell>
+                <mxCell id="l5t" value="Tokens" style="text;html=1;fontSize=9;" parent="legend" vertex="1">
+                    <mxGeometry x="120" y="25" width="45" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="l6" value="" style="rounded=1;fillColor=#FFF9C4;strokeColor=#F57F17;" parent="legend" vertex="1">
+                    <mxGeometry x="100" y="44" width="16" height="12" as="geometry"/>
+                </mxCell>
+                <mxCell id="l6t" value="Helpers" style="text;html=1;fontSize=9;" parent="legend" vertex="1">
+                    <mxGeometry x="120" y="41" width="45" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="l7" value="" style="rounded=1;fillColor=#CFD8DC;strokeColor=#37474F;" parent="legend" vertex="1">
+                    <mxGeometry x="100" y="60" width="16" height="12" as="geometry"/>
+                </mxCell>
+                <mxCell id="l7t" value="Chainlink" style="text;html=1;fontSize=9;" parent="legend" vertex="1">
+                    <mxGeometry x="120" y="57" width="55" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="l8" value="" style="rounded=1;fillColor=#B2EBF2;strokeColor=#00838F;" parent="legend" vertex="1">
+                    <mxGeometry x="100" y="76" width="16" height="12" as="geometry"/>
+                </mxCell>
+                <mxCell id="l8t" value="Types" style="text;html=1;fontSize=9;" parent="legend" vertex="1">
+                    <mxGeometry x="120" y="73" width="40" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="ll1" value="" style="endArrow=classic;strokeColor=#E65100;" parent="legend" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="180" y="35" as="sourcePoint"/>
+                        <mxPoint x="220" y="35" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ll1t" value="To Core" style="text;html=1;fontSize=9;" parent="legend" vertex="1">
+                    <mxGeometry x="225" y="28" width="50" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="ll2" value="" style="endArrow=classic;strokeColor=#9E9E9E;" parent="legend" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="180" y="55" as="sourcePoint"/>
+                        <mxPoint x="220" y="55" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ll2t" value="External" style="text;html=1;fontSize=9;" parent="legend" vertex="1">
+                    <mxGeometry x="225" y="48" width="50" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="ll3" value="" style="endArrow=classic;strokeColor=#555;dashed=1;" parent="legend" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="180" y="75" as="sourcePoint"/>
+                        <mxPoint x="220" y="75" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="ll3t" value="Reference" style="text;html=1;fontSize=9;" parent="legend" vertex="1">
+                    <mxGeometry x="225" y="68" width="55" height="16" as="geometry"/>
+                </mxCell>
+                <mxCell id="start_here" value="&lt;b&gt;START HERE&lt;/b&gt;&lt;br&gt;&lt;font size=&quot;1&quot;&gt;User entry point&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF4444;strokeColor=#CC0000;fontColor=#FFFFFF;fontSize=14;arcSize=30;" parent="1" vertex="1">
+                    <mxGeometry x="1650" y="135" width="180" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="start_arrow" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#FF4444;strokeWidth=2;dashed=1;endArrow=blockThin;endFill=1;" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1650" y="155" as="sourcePoint"/>
+                        <mxPoint x="1600" y="155" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
