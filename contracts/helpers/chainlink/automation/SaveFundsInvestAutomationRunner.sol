@@ -296,11 +296,15 @@ contract SaveFundsInvestAutomationRunner is
     }
 
     /**
-     * @notice Chainlink Automation fallback function.
+     * @notice Returns whether an automated investment cycle should be attempted.
+     * @dev This function is Chainlink Automation-compatible, but it is also intended to act as a
+     *      generic read gate for other automation layers such as Chainlink CRE workflows.
      * @dev It does not revert if paused.
      * @dev Returns false when paused, interval not elapsed, dependencies are paused,
      *      strict allocation check fails, or idle assets are below threshold.
-     * @return upkeepNeeded True when upkeep should be executed.
+     * @dev `performData` is kept for Automation compatibility. The current execution path does not
+     *      trust or require caller-supplied data and instead re-reads state during `performUpkeep`.
+     * @return upkeepNeeded True when an execution attempt should be made.
      * @return performData ABI-encoded payload for `performUpkeep` (currently idle assets).
      */
     function checkUpkeep(bytes calldata) external view returns (bool upkeepNeeded, bytes memory performData) {
@@ -329,7 +333,12 @@ contract SaveFundsInvestAutomationRunner is
     }
 
     /**
-     * @notice Chainlink Automation perform function.
+     * @notice Executes an automated investment cycle when current state allows it.
+     * @dev This function is Chainlink Automation-compatible, but it is also the canonical onchain
+     *      execution entrypoint to Chainlink CRE via a receiver/proxy contract.
+     * @dev Ignores caller-supplied data and revalidates all execution conditions onchain before
+     *      attempting to invest. This keeps execution robust against stale or manipulated offchain
+     *      read results.
      * @dev Reads full idle assets from vault, builds UniV3 invest payload, and calls vault invest.
      *      Emits success/failure events and updates `lastRun` on execution path.
      */
