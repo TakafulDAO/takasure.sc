@@ -279,7 +279,7 @@ contract SFUniswapV3Strategy is
      * @notice Updates the Uniswap V4 pool configuration used only for background swaps.
      * @dev This does not affect the active Uniswap V3 LP position, tick range, or NFT management.
      *      Swaps remain disabled until both `fee` and `tickSpacing` are non-zero; storing zero values is allowed
-     *      so the V4 swap rout can be intentionally cleared during maintenance.
+     *      so the V4 swap route can be intentionally cleared during maintenance.
      * @param fee V4 pool fee in hundredths of a bip.
      * @param tickSpacing V4 pool tick spacing.
      * @param hooks Hook contract configured for the V4 pool, or `address(0)`.
@@ -806,8 +806,7 @@ contract SFUniswapV3Strategy is
         address helperAddress = _swapRouterHelperAddress();
 
         // The helper owns the compact route-data schema so strategy and aggregator both validate against one source.
-        SwapRouteData memory routeData =
-            ISFUniswapV3SwapRouterHelper(helperAddress).decodeSwapRouteData(_data);
+        SwapRouteData memory routeData = ISFUniswapV3SwapRouterHelper(helperAddress).decodeSwapRouteData(_data);
 
         SwapSelectionContext memory context;
         // Deadline `0` keeps the old "use default window" behavior while still allowing explicit deadlines.
@@ -834,15 +833,16 @@ contract SFUniswapV3Strategy is
         }
 
         // The helper quotes both direct routes onchain and returns the best viable one without executing it yet.
-        RouteSelection memory selection = ISFUniswapV3SwapRouterHelper(helperAddress).selectBestRoute(
-            routeData.routeCount,
-            routeData.routeIds,
-            routeData.amountOutMins,
-            context.amountIn,
-            context.deadline,
-            context.twapMinOut,
-            _swapToOther
-        );
+        RouteSelection memory selection = ISFUniswapV3SwapRouterHelper(helperAddress)
+            .selectBestRoute(
+                routeData.routeCount,
+                routeData.routeIds,
+                routeData.amountOutMins,
+                context.amountIn,
+                context.deadline,
+                context.twapMinOut,
+                _swapToOther
+            );
 
         emit OnSwapRoutesCompared(context.amountIn, selection.v3QuotedOut, selection.v4QuotedOut, selection.bestRouteId);
 
@@ -904,8 +904,8 @@ contract SFUniswapV3Strategy is
 
         // The helper translates the route id into concrete Universal Router calldata while keeping the strategy
         // runtime small. Empty executions mean the route is currently unavailable.
-        SwapExecution memory execution =
-            ISFUniswapV3SwapRouterHelper(helper).buildRouteExecution(address(this), _routeId, _amountIn, _amountOutMin, _swapToOther);
+        SwapExecution memory execution = ISFUniswapV3SwapRouterHelper(helper)
+            .buildRouteExecution(address(this), _routeId, _amountIn, _amountOutMin, _swapToOther);
 
         // Disabled routes intentionally resolve to an empty execution so the selector can treat them as "not viable"
         // instead of bubbling an implementation-specific revert.
@@ -945,7 +945,7 @@ contract SFUniswapV3Strategy is
         uint256 _deadline,
         bool _emitEvents
     ) internal returns (bool ok_, uint256 amountOut_) {
-        // `delegatecall` keeps all token balances, approvals, and Permit2 state in the strategy proxy while borroowing
+        // `delegatecall` keeps all token balances, approvals, and Permit2 state in the strategy proxy while borrowing
         // the helper code for the router execution.
         address helper = _swapRouterHelperAddress();
         (bool ok, bytes memory returndata) = helper.delegatecall(

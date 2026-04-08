@@ -7,7 +7,7 @@
  * @dev There are two possible routes that can be built and quoted through this helper:
  *     `1`: Direct Uniswap V3 single-hop swap with fee 100. (Always enabled).
  *     `2`: Direct Uniswap V4 single-hop swap using the configured pool metadata.
- *     If there is non Uniswap V4 pool configured, then Uniswap V3 will always be selected.
+ *     If there is no Uniswap V4 pool configured, then Uniswap V3 will always be selected.
  *     If there is a V4 pool configured, the strategy will select the best route by quoting both and comparing
  *     the best outputs.
  */
