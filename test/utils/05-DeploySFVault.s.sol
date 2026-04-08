@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.28;
 
-import {Script, console2, stdJson} from "forge-std/Script.sol";
+import {Script, console2} from "forge-std/Script.sol";
 import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
 import {HelperConfig} from "deploy/utils/configs/HelperConfig.s.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";

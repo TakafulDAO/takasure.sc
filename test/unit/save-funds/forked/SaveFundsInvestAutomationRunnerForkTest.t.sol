@@ -8,6 +8,7 @@ import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
 import {SFStrategyAggregator} from "contracts/saveFunds/protocol/SFStrategyAggregator.sol";
 import {SFUniswapV3Strategy} from "contracts/saveFunds/protocol/SFUniswapV3Strategy.sol";
+import {SFUniswapV3SwapRouterHelper} from "contracts/helpers/uniswapHelpers/SFUniswapV3SwapRouterHelper.sol";
 import {
     SaveFundsInvestAutomationRunner
 } from "contracts/helpers/chainlink/automation/SaveFundsInvestAutomationRunner.sol";
@@ -17,6 +18,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {UnsafeUpgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
+import {ProtocolAddressType} from "contracts/types/Managers.sol";
 
 contract SaveFundsInvestAutomationRunnerForkTest is Test {
     uint256 internal constant FORK_BLOCK = 430826360;
@@ -25,6 +27,10 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
     bytes32 internal constant ON_UPKEEP_ATTEMPT_SIG = keccak256("OnUpkeepAttempt(uint256,uint256,uint16,bytes32)");
     bytes32 internal constant ON_INVEST_SUCCEEDED_SIG = keccak256("OnInvestSucceeded(uint256,uint256,uint256,uint16)");
     bytes32 internal constant ON_INVEST_FAILED_SIG = keccak256("OnInvestFailed(uint256,bytes)");
+    string internal constant SWAP_ROUTER_HELPER_NAME = "HELPER__SF_SWAP_ROUTER";
+    uint24 internal constant SWAP_V4_POOL_FEE = 8;
+    int24 internal constant SWAP_V4_POOL_TICK_SPACING = 1;
+    address internal constant SWAP_V4_POOL_HOOKS = address(0);
 
     AddressGetter internal addrGetter;
     AddressManager internal addrMgr;
@@ -58,6 +64,7 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         require(operator != address(0) && addrMgr.hasRole(Roles.OPERATOR, operator), "operator missing");
 
         _ensureBackendAdmin();
+        _upgradeSaveFundsImplementations();
         _ensureUnpaused();
 
         // Remove cap so tests can always deposit.
@@ -75,6 +82,30 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         runner = SaveFundsInvestAutomationRunner(runnerProxy);
 
         if (runner.strictUniOnlyAllocation()) runner.toggleStrictUniOnlyAllocation();
+    }
+
+    function _upgradeSaveFundsImplementations() internal {
+        address helper = address(new SFUniswapV3SwapRouterHelper(address(addrMgr)));
+
+        _upsertSwapRouterHelper(helper);
+
+        vm.startPrank(operator);
+        UnsafeUpgrades.upgradeProxy(address(aggregator), address(new SFStrategyAggregator()), "");
+        UnsafeUpgrades.upgradeProxy(address(uniV3), address(new SFUniswapV3Strategy()), "");
+        uniV3.setSwapV4PoolConfig(SWAP_V4_POOL_FEE, SWAP_V4_POOL_TICK_SPACING, SWAP_V4_POOL_HOOKS);
+        vm.stopPrank();
+    }
+
+    function _upsertSwapRouterHelper(address helper) internal {
+        address owner = addrMgr.owner();
+
+        vm.prank(owner);
+        try addrMgr.updateProtocolAddress(SWAP_ROUTER_HELPER_NAME, helper) {
+            return;
+        } catch {}
+
+        vm.prank(owner);
+        addrMgr.addProtocolAddress(SWAP_ROUTER_HELPER_NAME, helper, ProtocolAddressType.Helper);
     }
 
     function testRunnerFork_acceptKeeperRole() public {
@@ -226,9 +257,21 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
 
         assertEq(otherRatioBps, expectedRatioBps, "auto ratio should be spot-based");
 
-        (uint16 encodedOtherRatioBps,,,,,) =
+        (uint16 encodedOtherRatioBps, bytes memory swapToOtherData, bytes memory swapToUnderlyingData,,,) =
             abi.decode(payloads[0], (uint16, bytes, bytes, uint256, uint256, uint256));
         assertEq(encodedOtherRatioBps, otherRatioBps, "payload ratio mismatch");
+
+        (uint256 swapToOtherAmountIn,, uint8 swapToOtherRouteCount, uint8[2] memory swapToOtherRouteIds,) =
+            abi.decode(swapToOtherData, (uint256, uint256, uint8, uint8[2], uint256[2]));
+        (uint256 swapToUnderlyingAmountIn,, uint8 swapToUnderlyingRouteCount, uint8[2] memory swapToUnderlyingRouteIds,) =
+            abi.decode(swapToUnderlyingData, (uint256, uint256, uint8, uint8[2], uint256[2]));
+
+        assertGt(swapToOtherAmountIn, 0, "swapToOther amountIn missing");
+        assertGt(swapToUnderlyingAmountIn, 0, "swapToUnderlying amountIn missing");
+        assertGe(swapToOtherRouteCount, 1, "swapToOther routes missing");
+        assertGe(swapToUnderlyingRouteCount, 1, "swapToUnderlying routes missing");
+        assertEq(swapToOtherRouteIds[0], 1, "runner should prefer V3 single-hop first");
+        assertEq(swapToUnderlyingRouteIds[0], 1, "runner should prefer V3 single-hop first");
     }
 
     function _getAddr(string memory contractName) internal view returns (address) {

@@ -12,6 +12,7 @@ import {SFVault} from "contracts/saveFunds/protocol/SFVault.sol";
 import {SFStrategyAggregator} from "contracts/saveFunds/protocol/SFStrategyAggregator.sol";
 import {SFUniswapV3Strategy} from "contracts/saveFunds/protocol/SFUniswapV3Strategy.sol";
 import {SFUniswapV3StrategyLens} from "contracts/saveFunds/lens/SFUniswapV3StrategyLens.sol";
+import {SFUniswapV3SwapRouterHelper} from "contracts/helpers/uniswapHelpers/SFUniswapV3SwapRouterHelper.sol";
 import {ISFStrategy} from "contracts/interfaces/saveFunds/ISFStrategy.sol";
 import {AddressManager} from "contracts/managers/AddressManager.sol";
 import {ModuleManager} from "contracts/managers/ModuleManager.sol";
@@ -96,6 +97,9 @@ contract UniV3StratTest is Test {
     address internal constant POOL_USDC_USDT = 0xbE3aD6a5669Dc0B8b12FeBC03608860C31E2eef6;
     address internal constant NONFUNGIBLE_POSITION_MANAGER = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
     address internal constant UNIVERSAL_ROUTER = 0xA51afAFe0263b40EdaEf0Df8781eA9aa03E381a3;
+    uint24 internal constant SWAP_V4_POOL_FEE = 8;
+    int24 internal constant SWAP_V4_POOL_TICK_SPACING = 1;
+    address internal constant SWAP_V4_POOL_HOOKS = address(0);
 
     int24 internal constant TICK_LOWER = -200;
     int24 internal constant TICK_UPPER = 200;
@@ -176,7 +180,19 @@ contract UniV3StratTest is Test {
         );
         uniV3Strategy = SFUniswapV3Strategy(stratProxy);
         uniV3Lens = new SFUniswapV3StrategyLens();
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress(
+            "PROTOCOL__SF_UNISWAP_V3_STRATEGY", address(uniV3Strategy), ProtocolAddressType.Protocol
+        );
+        address swapRouterHelper = address(new SFUniswapV3SwapRouterHelper(address(addrMgr)));
+        vm.prank(addrMgr.owner());
+        addrMgr.addProtocolAddress(
+            "HELPER__SF_SWAP_ROUTER", swapRouterHelper, ProtocolAddressType.Helper
+        );
         swapper = new UniV3SwapHelper(POOL_USDC_USDT);
+
+        vm.prank(takadao);
+        uniV3Strategy.setSwapV4PoolConfig(SWAP_V4_POOL_FEE, SWAP_V4_POOL_TICK_SPACING, SWAP_V4_POOL_HOOKS);
 
         // The only strategy in the aggregator
         vm.prank(takadao);
@@ -223,6 +239,56 @@ contract UniV3StratTest is Test {
         vm.prank(address(vault));
         vm.expectRevert(SFUniswapV3Strategy.SFUniswapV3Strategy__InvalidStrategyData.selector);
         aggregator.deposit(assetsToInvest, _perStrategyData(v3));
+    }
+
+    function testUniV3Strat_deposit_RevertsWhenSwapV4PoolConfigMissing() public {
+        vm.prank(takadao);
+        uniV3Strategy.setSwapV4PoolConfig(0, 0, address(0));
+
+        uint256 assetsToInvest = 1_000e6;
+        bytes memory swapToOther = _encodeSwapDataExactInBpsSingleRoute(uint8(2), uint16(MAX_BPS));
+        bytes memory v3 = _encodeV3ActionData(5_000, swapToOther, bytes(""), block.timestamp + 1, 0, 0);
+
+        _fundAggregator(assetsToInvest);
+        vm.prank(address(vault));
+        vm.expectRevert(SFUniswapV3Strategy.SFUniswapV3Strategy__NoViableSwapRoute.selector);
+        aggregator.deposit(assetsToInvest, _perStrategyData(v3));
+    }
+
+    function testUniV3Strat_deposit_SkipsDisabledFirstRoute_AndFallsBackToV3() public {
+        vm.prank(takadao);
+        uniV3Strategy.setSwapV4PoolConfig(0, 0, address(0));
+
+        uint256 assetsToInvest = 1_000e6;
+        bytes memory swapToOther = _encodeSwapDataExactInBpsRouteOrder(uint16(MAX_BPS), uint8(2), uint8(1));
+        bytes memory v3 = _encodeV3ActionData(5_000, swapToOther, bytes(""), block.timestamp + 1, 0, 0);
+
+        uint256 invested = _depositViaAggregator(assetsToInvest, v3);
+        assertGt(invested, 0, "fallback route did not invest");
+        assertGt(uniV3Strategy.positionTokenId(), 0, "fallback route did not mint position");
+    }
+
+    function testUniV3Strat_previewWithdrawable_UsesFirstRouteOnlyForPreview() public {
+        _fundStrategyOther(1_000e6);
+
+        uint8[2] memory routeIds;
+        uint256[2] memory amountOutMins;
+        routeIds[0] = 1;
+        routeIds[1] = 1;
+        bytes memory duplicateSwapToUnderlying =
+            abi.encode(AMOUNT_IN_BPS_FLAG | uint256(MAX_BPS), block.timestamp + 1, uint8(2), routeIds, amountOutMins);
+        bytes memory singleRouteSwapToUnderlying =
+            _encodeSwapDataExactInBpsSingleRoute(uint8(1), uint16(MAX_BPS));
+        bytes memory duplicateRouteActionData =
+            _encodeV3ActionData(0, bytes(""), duplicateSwapToUnderlying, block.timestamp + 1, 0, 0);
+        bytes memory singleRouteActionData =
+            _encodeV3ActionData(0, bytes(""), singleRouteSwapToUnderlying, block.timestamp + 1, 0, 0);
+
+        assertEq(
+            uniV3Strategy.previewWithdrawable(duplicateRouteActionData),
+            uniV3Strategy.previewWithdrawable(singleRouteActionData),
+            "preview should only depend on the first candidate route"
+        );
     }
 
     function testUniV3Strat_deposit_MintsPosition_UsesRouterSwap_AndSweeps() public {
@@ -548,26 +614,15 @@ contract UniV3StratTest is Test {
         return abi.encode(strategies, payloads);
     }
 
-    function _poolFee() internal view returns (uint24) {
-        return IUniswapV3Pool(POOL_USDC_USDT).fee();
-    }
-
-    function _path(address tokenIn, address tokenOut) internal view returns (bytes memory) {
-        return abi.encodePacked(tokenIn, _poolFee(), tokenOut);
-    }
-
     function _encodeSwapDataExactIn(address tokenIn, address tokenOut, uint256 amountIn)
         internal
         view
         returns (bytes memory)
     {
-        // inputs[0] for Commands.V3_SWAP_EXACT_IN:
-        // abi.encode(address recipient, uint256 amountIn, uint256 amountOutMin, bytes path, bool payerIsUser)
-        bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(address(uniV3Strategy), amountIn, uint256(0), _path(tokenIn, tokenOut), true);
-
         uint256 deadline = block.timestamp + 1; // UniversalRouter.execute deadline
-        return abi.encode(inputs, deadline);
+        tokenIn;
+        tokenOut;
+        return _encodeRouteSwapData(amountIn, deadline, true, true);
     }
 
     function _encodeSwapDataExactInBps(address tokenIn, address tokenOut, uint16 amountInBps)
@@ -577,12 +632,46 @@ contract UniV3StratTest is Test {
     {
         require(amountInBps <= MAX_BPS, "amountInBps>MAX_BPS");
 
-        bytes[] memory inputs = new bytes[](1);
         uint256 flaggedAmountIn = AMOUNT_IN_BPS_FLAG | uint256(amountInBps);
-        inputs[0] = abi.encode(address(uniV3Strategy), flaggedAmountIn, uint256(0), _path(tokenIn, tokenOut), true);
-
         uint256 deadline = block.timestamp + 1; // UniversalRouter.execute deadline
-        return abi.encode(inputs, deadline);
+        tokenIn;
+        tokenOut;
+        return _encodeRouteSwapData(flaggedAmountIn, deadline, true, true);
+    }
+
+    function _encodeSwapDataExactInBpsSingleRoute(uint8 routeId, uint16 amountInBps) internal view returns (bytes memory) {
+        require(amountInBps <= MAX_BPS, "amountInBps>MAX_BPS");
+        require(routeId >= 1 && routeId <= 2, "routeId");
+        uint8[2] memory routeIds;
+        uint256[2] memory amountOutMins;
+        routeIds[0] = routeId;
+        return abi.encode(AMOUNT_IN_BPS_FLAG | uint256(amountInBps), block.timestamp + 1, uint8(1), routeIds, amountOutMins);
+    }
+
+    function _encodeSwapDataExactInBpsRouteOrder(uint16 amountInBps, uint8 firstRoute, uint8 secondRoute)
+        internal
+        view
+        returns (bytes memory)
+    {
+        require(amountInBps <= MAX_BPS, "amountInBps>MAX_BPS");
+        uint8[2] memory routeIds;
+        uint256[2] memory amountOutMins;
+        routeIds[0] = firstRoute;
+        routeIds[1] = secondRoute;
+        return abi.encode(AMOUNT_IN_BPS_FLAG | uint256(amountInBps), block.timestamp + 1, uint8(2), routeIds, amountOutMins);
+    }
+
+    function _encodeRouteSwapData(uint256 amountIn, uint256 deadline, bool includeV3, bool includeV4)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        uint8[2] memory routeIds;
+        uint256[2] memory amountOutMins;
+        uint8 routeCount;
+        if (includeV3) routeIds[routeCount++] = 1;
+        if (includeV4) routeIds[routeCount++] = 2;
+        return abi.encode(amountIn, deadline, routeCount, routeIds, amountOutMins);
     }
 
     function _encodeV3ActionData(

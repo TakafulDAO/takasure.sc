@@ -17,7 +17,7 @@ Example (bundle, explicit payloads):
 Example (human-readable UniV3 action data):
   node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js \
     --strategies 0xStrat1 \
-    --swapToUnderlyingTokenIn 0xUSDT --swapToUnderlyingTokenOut 0xUSDC --swapToUnderlyingFee 500 --swapToUnderlyingBps 10000 \
+    --swapToUnderlyingBps 10000 \
     --pmDeadline 0
 
 Example (raw data / harvest all active):
@@ -82,8 +82,10 @@ function hasSwapBuilderArgs(prefix) {
             getArg(`${prefix}Bps`) ||
             getArg(`${prefix}AmountIn`) ||
             getArg(`${prefix}AmountOutMin`) ||
+            getArg(`${prefix}AmountOutMins`) ||
             getArg(`${prefix}Deadline`) ||
-            getArg(`${prefix}Recipient`),
+            getArg(`${prefix}Recipient`) ||
+            getArg(`${prefix}RouteIds`),
     )
 }
 
@@ -107,20 +109,23 @@ function buildSwapData(prefix, defaultRecipient, chainCfg) {
     const dataRaw = getArg(`${prefix}Data`)
     if (dataRaw) return dataRaw
 
-    const defaults = getTokenDefaults(prefix, chainCfg)
-    const tokenIn = getArg(`${prefix}TokenIn`, defaults.tokenIn)
-    const tokenOut = getArg(`${prefix}TokenOut`, defaults.tokenOut)
-    const fee = getArg(`${prefix}Fee`)
     const bps = getArg(`${prefix}Bps`)
     const amountInRaw = getArg(`${prefix}AmountIn`)
+    const amountOutMinRaw = getArg(`${prefix}AmountOutMin`)
+    const amountOutMinsRaw = parseList(getArg(`${prefix}AmountOutMins`), `${prefix}AmountOutMins`)
+    const deadlineRaw = getArg(`${prefix}Deadline`)
+    const routeIdsRaw = parseList(getArg(`${prefix}RouteIds`), `${prefix}RouteIds`)
+    const hasLegacyHints = Boolean(
+        getArg(`${prefix}TokenIn`) ||
+            getArg(`${prefix}TokenOut`) ||
+            getArg(`${prefix}Fee`) ||
+            getArg(`${prefix}Recipient`) ||
+            defaultRecipient ||
+            chainCfg,
+    )
 
     // No builder inputs
-    if (!tokenIn && !tokenOut && !fee && !bps && !amountInRaw) return "0x"
-
-    if (!tokenIn || !tokenOut || !fee) {
-        console.error(`${prefix}: tokenIn, tokenOut and fee are required to build swap data`)
-        process.exit(1)
-    }
+    if (!bps && !amountInRaw && !amountOutMinRaw && !deadlineRaw && !hasLegacyHints) return "0x"
 
     if (!bps && !amountInRaw) {
         console.error(`${prefix}: either bps or amountIn is required`)
@@ -132,14 +137,8 @@ function buildSwapData(prefix, defaultRecipient, chainCfg) {
         process.exit(1)
     }
 
-    const recipient = getArg(`${prefix}Recipient`, defaultRecipient || "")
-    if (!recipient) {
-        console.error(`${prefix}: recipient is required (use --${prefix}Recipient)`)
-        process.exit(1)
-    }
-
-    const amountOutMin = parseUint(getArg(`${prefix}AmountOutMin`, "0"), `${prefix}AmountOutMin`)
-    const deadline = parseUint(getArg(`${prefix}Deadline`, "0"), `${prefix}Deadline`)
+    const amountOutMin = parseUint(amountOutMinRaw || "0", `${prefix}AmountOutMin`)
+    const deadline = parseUint(deadlineRaw || "0", `${prefix}Deadline`)
 
     let amountIn
     if (amountInRaw) {
@@ -149,12 +148,48 @@ function buildSwapData(prefix, defaultRecipient, chainCfg) {
         amountIn = AMOUNT_IN_BPS_FLAG.or(parseBps(bps, `${prefix}Bps`))
     }
 
-    const path = encodePath(tokenIn, parseUint(fee, `${prefix}Fee`), tokenOut)
-    const input = utils.defaultAbiCoder.encode(
-        ["address", "uint256", "uint256", "bytes", "bool"],
-        [recipient, amountIn, amountOutMin, path, true],
+    const routeIds = routeIdsRaw
+        ? routeIdsRaw.map((value) => {
+              const routeId = Number(value)
+              if (!Number.isFinite(routeId) || routeId < 1 || routeId > 2) {
+                  console.error(`${prefix}RouteIds entries must be between 1 and 2`)
+                  process.exit(1)
+              }
+              return routeId
+          })
+        : [1, 2]
+
+    if (new Set(routeIds).size !== routeIds.length) {
+        console.error(`${prefix}RouteIds must not contain duplicates`)
+        process.exit(1)
+    }
+    if (routeIds.length === 0 || routeIds.length > 2) {
+        console.error(`${prefix}RouteIds must contain between 1 and 2 entries`)
+        process.exit(1)
+    }
+
+    const amountOutMinsFixed = [amountOutMin, BigNumber.from(0)]
+    if (amountOutMinsRaw) {
+        if (amountOutMinRaw) {
+            console.error(`${prefix}: provide either amountOutMin or amountOutMins (not both)`)
+            process.exit(1)
+        }
+        if (amountOutMinsRaw.length !== routeIds.length) {
+            console.error(`${prefix}AmountOutMins must match ${prefix}RouteIds length`)
+            process.exit(1)
+        }
+        for (let i = 0; i < amountOutMinsRaw.length; i++) {
+            amountOutMinsFixed[i] = parseUint(amountOutMinsRaw[i], `${prefix}AmountOutMins`)
+        }
+    }
+
+    const routeIdsFixed = [0, 0]
+    for (let i = 0; i < routeIds.length; i++) routeIdsFixed[i] = routeIds[i]
+
+    return utils.defaultAbiCoder.encode(
+        ["uint256", "uint256", "uint8", "uint8[2]", "uint256[2]"],
+        [amountIn, deadline, routeIds.length, routeIdsFixed, amountOutMinsFixed],
     )
-    return utils.defaultAbiCoder.encode(["bytes[]", "uint256"], [[input], deadline])
 }
 
 async function main() {
@@ -164,8 +199,7 @@ async function main() {
                 "Usage:",
                 "  node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js --strategies <a,b> [--payloads <p1,p2>] [--chain <arb-one|arb-sepolia>]",
                 "  node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js --strategies <addr|uniV3> --otherRatioBps <bps> \\",
-                "    --swapToOtherTokenIn <addr> --swapToOtherTokenOut <addr> --swapToOtherFee <fee> --swapToOtherBps <bps> \\",
-                "    --swapToUnderlyingTokenIn <addr> --swapToUnderlyingTokenOut <addr> --swapToUnderlyingFee <fee> --swapToUnderlyingBps <bps> \\",
+                "    --swapToOtherBps <bps> --swapToUnderlyingBps <bps> \\",
                 "    [--pmDeadline <uint>] [--minUnderlying <uint>] [--minOther <uint>]",
                 "  (Or provide raw: --swapToOtherData <0x> --swapToUnderlyingData <0x>)",
                 "  node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js --data <0x...>",
@@ -178,7 +212,7 @@ async function main() {
                 "    --payloads 0xdeadbeef,0x",
                 "  node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js \\",
                 "    --strategies uniV3 --chain arb-one \\",
-                "    --swapToUnderlyingTokenIn 0xUSDT --swapToUnderlyingTokenOut 0xUSDC --swapToUnderlyingFee 500 --swapToUnderlyingBps 10000 \\",
+                "    --swapToUnderlyingBps 10000 \\",
                 "    --pmDeadline 0",
                 "  node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js --data 0x",
                 "",
@@ -200,21 +234,14 @@ async function main() {
                 "  --swapToOtherAmountIn <uint>        Swap input amount for otherToken path (absolute).",
                 "  --swapToOtherAmountOutMin <uint>    Swap min out for otherToken path.",
                 "  --swapToOtherBps <bps>              Swap input amount as BPS sentinel (0..10000).",
-                "  --swapToOtherData <0x>              Raw swapToOtherData bytes (overrides builder).",
+                "  --swapToOtherData <0x>              Raw compact swapToOtherData bytes (overrides builder).",
                 "  --swapToOtherDeadline <uint>        Swap deadline for otherToken path.",
-                "  --swapToOtherFee <fee>              Uniswap V3 pool fee for otherToken path.",
-                "  --swapToOtherRecipient <addr>       Swap recipient (should be strategy address).",
-                "  --swapToOtherTokenIn <addr>         Swap tokenIn for otherToken path.",
-                "  --swapToOtherTokenOut <addr>        Swap tokenOut for otherToken path.",
                 "  --swapToUnderlyingAmountIn <uint>   Swap input amount for underlying path (absolute).",
                 "  --swapToUnderlyingAmountOutMin <uint>  Swap min out for underlying path.",
                 "  --swapToUnderlyingBps <bps>         Swap input amount as BPS sentinel (0..10000).",
-                "  --swapToUnderlyingData <0x>         Raw swapToUnderlyingData bytes (overrides builder).",
+                "  --swapToUnderlyingData <0x>         Raw compact swapToUnderlyingData bytes (overrides builder).",
                 "  --swapToUnderlyingDeadline <uint>   Swap deadline for underlying path.",
-                "  --swapToUnderlyingFee <fee>         Uniswap V3 pool fee for underlying path.",
-                "  --swapToUnderlyingRecipient <addr>  Swap recipient (should be strategy address).",
-                "  --swapToUnderlyingTokenIn <addr>    Swap tokenIn for underlying path.",
-                "  --swapToUnderlyingTokenOut <addr>   Swap tokenOut for underlying path.",
+                "  Deprecated compatibility flags such as --swapTo*TokenIn/Out, --swapTo*Fee and --swapTo*Recipient are ignored by the builder.",
             ].join("\n"),
         )
         process.exit(0)

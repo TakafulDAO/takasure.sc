@@ -123,32 +123,28 @@ Used in action-data mode (supported by invest/rebalance/harvest builders):
   Minimum other-token out for PM actions.
 
 - `--swapToOtherData <0x>`  
-  Raw encoded underlying -> other swap data.
+  Raw encoded underlying -> other swap data.  
+  Compact schema: `abi.encode(uint256 amountIn, uint256 amountOutMin, uint256 deadline)`.
 
-- `--swapToOtherTokenIn <addr>`
-- `--swapToOtherTokenOut <addr>`
-- `--swapToOtherFee <fee>`
 - `--swapToOtherBps <bps>`
 - `--swapToOtherAmountIn <uint>`
 - `--swapToOtherAmountOutMin <uint>`
 - `--swapToOtherDeadline <uint>`
-- `--swapToOtherRecipient <addr>`
 
 - `--swapToUnderlyingData <0x>`  
-  Raw encoded other -> underlying swap data.
+  Raw encoded other -> underlying swap data.  
+  Compact schema: `abi.encode(uint256 amountIn, uint256 amountOutMin, uint256 deadline)`.
 
-- `--swapToUnderlyingTokenIn <addr>`
-- `--swapToUnderlyingTokenOut <addr>`
-- `--swapToUnderlyingFee <fee>`
 - `--swapToUnderlyingBps <bps>`
 - `--swapToUnderlyingAmountIn <uint>`
 - `--swapToUnderlyingAmountOutMin <uint>`
 - `--swapToUnderlyingDeadline <uint>`
-- `--swapToUnderlyingRecipient <addr>`
+
+Deprecated compatibility flags such as `--swapTo*TokenIn`, `--swapTo*TokenOut`, `--swapTo*Fee`, and `--swapTo*Recipient` are ignored by the JS builders.
 
 ## `SFVault::investIntoStrategy`
 
-Script: `scripts/save-funds/automation/javascript/buildVaultInvestCalldata.js`  
+Script: `scripts/save-funds/automation/buildVaultInvestCalldata.js`  
 Builds calldata for:
 `SFVault.investIntoStrategy(uint256 assets, address[] strategies, bytes[] payloads)`.
 
@@ -158,23 +154,18 @@ Builds calldata for:
   Amount of underlying to invest.  
   `full|max|all` reads `SFVault.idleAssets()`.
 
-- `--defaultSwapFee <fee>`  
-  Default fee used by swap builders when per-swap fee is omitted.
-
 - `--otherRatioBps <bps|auto>`  
   Invest supports `auto` (LP-target ratio estimation).
 
 ### Example: simulate invest full vault balance
 
 ```bash
-node scripts/save-funds/automation/javascript/buildVaultInvestCalldata.js \
+node scripts/save-funds/automation/buildVaultInvestCalldata.js \
   --chain arb-one \
   --assets full \
   --strategies uniV3 \
   --otherRatioBps auto \
-  --swapToOtherFee 100 \
   --swapToOtherBps 10000 \
-  --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
   --pmDeadline $(( $(date +%s) + 1800 )) \
   --simulateTenderly
@@ -185,7 +176,7 @@ node scripts/save-funds/automation/javascript/buildVaultInvestCalldata.js \
 
 ## `SFStrategyAggregator::rebalance`
 
-Script: `scripts/save-funds/automation/javascript/buildAggregatorRebalanceCalldata.js`  
+Script: `scripts/save-funds/automation/buildAggregatorRebalanceCalldata.js`  
 Builds calldata for:
 `SFStrategyAggregator.rebalance(bytes data)`.
 
@@ -214,7 +205,7 @@ Builds calldata for:
 1. Rebalance only updating ticks
 
 ```bash
-node scripts/save-funds/automation/javascript/buildAggregatorRebalanceCalldata.js \
+node scripts/save-funds/automation/buildAggregatorRebalanceCalldata.js \
   --chain arb-one \
   --strategies uniV3 \
   --tickLower -594 \
@@ -226,15 +217,13 @@ node scripts/save-funds/automation/javascript/buildAggregatorRebalanceCalldata.j
 2. Out of position (current tick is outside range, either `< lower` or `> upper`): rebalance and redeploy available liquidity
 
 ```bash
-node scripts/save-funds/automation/javascript/buildAggregatorRebalanceCalldata.js \
+node scripts/save-funds/automation/buildAggregatorRebalanceCalldata.js \
   --chain arb-one \
   --strategies uniV3 \
-  --tickLower <new_lower_tick> \
-  --tickUpper <new_upper_tick> \
+  --tickLower 1 \
+  --tickUpper 6 \
   --otherRatioBps 5000 \
-  --swapToOtherFee 100 \
   --swapToOtherBps 10000 \
-  --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
   --pmDeadline $(( $(date +%s) + 1800 )) \
   --simulateTenderly
@@ -243,7 +232,7 @@ node scripts/save-funds/automation/javascript/buildAggregatorRebalanceCalldata.j
 3. Rebalance all active sub-strategies with empty payloads
 
 ```bash
-node scripts/save-funds/automation/javascript/buildAggregatorRebalanceCalldata.js \
+node scripts/save-funds/automation/buildAggregatorRebalanceCalldata.js \
   --chain arb-one \
   --data 0x \
   --simulateTenderly
@@ -272,11 +261,10 @@ If leftovers remain:
 1) Sweep leftovers to vault via harvest:
 
 ```bash
-node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js \
+node scripts/save-funds/automation/buildAggregatorHarvestCalldata.js \
   --chain arb-one \
   --strategies uniV3 \
   --swapToOtherData 0x \
-  --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
   --pmDeadline $(( $(date +%s) + 1800 )) \
   --simulateTenderly
@@ -285,14 +273,12 @@ node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js 
 2) Re-invest everything from vault:
 
 ```bash
-node scripts/save-funds/automation/javascript/buildVaultInvestCalldata.js \
+node scripts/save-funds/automation/buildVaultInvestCalldata.js \
   --chain arb-one \
   --assets full \
   --strategies uniV3 \
   --otherRatioBps auto \
-  --swapToOtherFee 100 \
   --swapToOtherBps 10000 \
-  --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
   --pmDeadline $(( $(date +%s) + 1800 )) \
   --simulateTenderly
@@ -302,7 +288,7 @@ After simulations are good, rerun each with `--sendToSafe` to execute.
 
 ## `SFStrategyAggregator::harvest`
 
-Script: `scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js`  
+Script: `scripts/save-funds/automation/buildAggregatorHarvestCalldata.js`  
 Builds calldata for:
 `SFStrategyAggregator.harvest(bytes data)`.
 
@@ -322,7 +308,7 @@ Builds calldata for:
 1. Harvest all active sub-strategies (empty bundle payload)
 
 ```bash
-node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js \
+node scripts/save-funds/automation/buildAggregatorHarvestCalldata.js \
   --chain arb-one \
   --data 0x \
   --simulateTenderly
@@ -331,7 +317,7 @@ node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js 
 2. Harvest one strategy with empty payload
 
 ```bash
-node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js \
+node scripts/save-funds/automation/buildAggregatorHarvestCalldata.js \
   --chain arb-one \
   --strategies uniV3 \
   --simulateTenderly
@@ -340,13 +326,11 @@ node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js 
 3. Harvest with action-data swap builders
 
 ```bash
-node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js \
+node scripts/save-funds/automation/buildAggregatorHarvestCalldata.js \
   --chain arb-one \
   --strategies uniV3 \
   --otherRatioBps 5000 \
-  --swapToOtherFee 100 \
   --swapToOtherBps 10000 \
-  --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
   --pmDeadline $(( $(date +%s) + 1800 )) \
   --simulateTenderly
@@ -355,11 +339,10 @@ node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js 
 4. Harvest and swap all received USDT -> USDC before sweep
 
 ```bash
-node scripts/save-funds/automation/javascript/buildAggregatorHarvestCalldata.js \
+node scripts/save-funds/automation/buildAggregatorHarvestCalldata.js \
   --chain arb-one \
   --strategies uniV3 \
   --swapToOtherData 0x \
-  --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
   --pmDeadline $(( $(date +%s) + 1800 )) \
   --simulateTenderly

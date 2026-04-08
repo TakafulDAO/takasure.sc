@@ -27,6 +27,7 @@ import {AggregatorV3Interface} from "ccip/contracts/src/v0.8/shared/interfaces/A
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Commands} from "contracts/helpers/uniswapHelpers/libraries/Commands.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {UniswapV4Swap} from "contracts/helpers/uniswapHelpers/libraries/UniswapV4Swap.sol";
 
 /// @custom:oz-upgrades-from contracts/version_previous_contracts/SaveInvestCCIPSenderV1.sol:SaveInvestCCIPSenderV1
 contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpgradeable {
@@ -67,31 +68,11 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
     uint256 public constant FEE_SWAP_MIN_OUT_BPS = 9_500; // minOut = 95% of Chainlink quote (allows 5% slippage)
     uint256 public constant FEE_SWAP_DEADLINE_WINDOW = 10 minutes; // bounded owner execution window
 
-    bytes1 private constant V4_ACTION_SWAP_EXACT_IN_SINGLE = 0x06;
-    bytes1 private constant V4_ACTION_SETTLE_ALL = 0x0c;
-    bytes1 private constant V4_ACTION_TAKE_ALL = 0x0f;
-
     struct MessageBuild {
         string protocolName;
         uint256 amount;
         uint256 gasLimit;
         address userAddr;
-    }
-
-    struct V4PoolKey {
-        address currency0;
-        address currency1;
-        uint24 fee;
-        int24 tickSpacing;
-        address hooks;
-    }
-
-    struct V4ExactInputSingleParams {
-        V4PoolKey poolKey;
-        bool zeroForOne;
-        uint128 amountIn;
-        uint128 amountOutMinimum;
-        bytes hookData;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -373,7 +354,7 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
         uint256 minLinkOut = _getFeeSwapMinLinkOut(usdcAmountIn);
         require(minLinkOut <= type(uint128).max, SaveInvestCCIPSender__AmountTooLargeForV4(minLinkOut));
 
-        V4PoolKey memory poolKey = _buildFeeSwapV4PoolKey();
+        UniswapV4Swap.PoolKey memory poolKey = _buildFeeSwapV4PoolKey();
         bool zeroForOne = address(underlying) == poolKey.currency0;
 
         bytes memory commands = abi.encodePacked(bytes1(uint8(Commands.V4_SWAP)));
@@ -561,61 +542,23 @@ contract SaveInvestCCIPSender is Initializable, UUPSUpgradeable, Ownable2StepUpg
         minLinkOut_ = Math.mulDiv(quotedLinkOut, FEE_SWAP_MIN_OUT_BPS, BPS_DENOMINATOR, Math.Rounding.Floor);
     }
 
-    function _buildFeeSwapV4PoolKey() internal view returns (V4PoolKey memory poolKey_) {
-        address _underlyingAddr = address(underlying);
-        address _linkAddr = address(linkToken);
-
-        if (_underlyingAddr < _linkAddr) {
-            poolKey_ = V4PoolKey({
-                currency0: _underlyingAddr,
-                currency1: _linkAddr,
-                fee: feeSwapV4PoolFee,
-                tickSpacing: feeSwapV4PoolTickSpacing,
-                hooks: feeSwapV4PoolHooks
-            });
-        } else {
-            poolKey_ = V4PoolKey({
-                currency0: _linkAddr,
-                currency1: _underlyingAddr,
-                fee: feeSwapV4PoolFee,
-                tickSpacing: feeSwapV4PoolTickSpacing,
-                hooks: feeSwapV4PoolHooks
-            });
-        }
+    function _buildFeeSwapV4PoolKey() internal view returns (UniswapV4Swap.PoolKey memory poolKey_) {
+        poolKey_ = UniswapV4Swap.buildPoolKey(
+            address(underlying), address(linkToken), feeSwapV4PoolFee, feeSwapV4PoolTickSpacing, feeSwapV4PoolHooks
+        );
     }
 
     function _buildUniversalRouterV4SwapInput(
-        V4PoolKey memory _poolKey,
+        UniswapV4Swap.PoolKey memory _poolKey,
         bool _zeroForOne,
         uint128 _amountIn,
         uint128 _amountOutMinimum,
         uint256 _maxInputSettleAmount,
         uint256 _minOutputTakeAmount
     ) internal pure returns (bytes memory input_) {
-        // Universal Router V4_SWAP input is `abi.encode(actions, params[])`.
-        // Action sequence:
-        // 1) SWAP_EXACT_IN_SINGLE  2) SETTLE_ALL(input currency)  3) TAKE_ALL(output currency)
-        bytes memory actions =
-            abi.encodePacked(V4_ACTION_SWAP_EXACT_IN_SINGLE, V4_ACTION_SETTLE_ALL, V4_ACTION_TAKE_ALL);
-
-        bytes[] memory params = new bytes[](3);
-        params[0] = abi.encode(
-            V4ExactInputSingleParams({
-                poolKey: _poolKey,
-                zeroForOne: _zeroForOne,
-                amountIn: _amountIn,
-                amountOutMinimum: _amountOutMinimum,
-                hookData: bytes("")
-            })
+        input_ = UniswapV4Swap.buildUniversalRouterExactInSingleInput(
+            _poolKey, _zeroForOne, _amountIn, _amountOutMinimum, _maxInputSettleAmount, _minOutputTakeAmount
         );
-
-        address inputCurrency = _zeroForOne ? _poolKey.currency0 : _poolKey.currency1;
-        address outputCurrency = _zeroForOne ? _poolKey.currency1 : _poolKey.currency0;
-
-        params[1] = abi.encode(inputCurrency, _maxInputSettleAmount);
-        params[2] = abi.encode(outputCurrency, _minOutputTakeAmount);
-
-        input_ = abi.encode(actions, params);
     }
 
     function _readValidatedPrice(AggregatorV3Interface _feed) internal view returns (uint256 price_, uint8 decimals_) {

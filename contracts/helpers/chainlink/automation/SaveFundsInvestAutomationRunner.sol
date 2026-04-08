@@ -47,6 +47,8 @@ contract SaveFundsInvestAutomationRunner is
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant AMOUNT_IN_BPS_FLAG = 1 << 255;
     uint256 internal constant DAILY_INTERVAL = 12 hours;
+    uint8 internal constant ROUTE_V3_SINGLE_HOP = 1;
+    uint8 internal constant ROUTE_V4_SINGLE_HOP = 2;
 
     IAddressManager public addressManager;
     ISFVaultAutomation public vault;
@@ -419,8 +421,8 @@ contract SaveFundsInvestAutomationRunner is
      * @return ABI-encoded UniV3 action payload.
      */
     function _buildUniV3Payload(uint16 _otherRatioBPS) internal view returns (bytes memory) {
-        bytes memory _swapToOtherData = _buildSingleHopSwapData(underlyingToken, otherToken, swapToOtherBPS);
-        bytes memory _swapToUnderlyingData = _buildSingleHopSwapData(otherToken, underlyingToken, swapToUnderlyingBPS);
+        bytes memory _swapToOtherData = _buildRankedSwapData(swapToOtherBPS);
+        bytes memory _swapToUnderlyingData = _buildRankedSwapData(swapToUnderlyingBPS);
 
         uint256 _pmDeadline = deadlineBuffer == 0 ? 0 : block.timestamp + deadlineBuffer;
 
@@ -428,29 +430,21 @@ contract SaveFundsInvestAutomationRunner is
     }
 
     /**
-     * @notice Builds one-hop Universal Router swap data with BPS sentinel amount.
+     * @notice Builds ranked fixed-route swap data with a BPS sentinel amount.
      * @dev Returns empty bytes when `bps_ == 0`.
-     * @param _tokenIn Input token.
-     * @param _tokenOut Output token.
      * @param _bps BPS sentinel for runtime amount calculation.
-     * @return ABI-encoded `(bytes[] inputs, uint256 deadline)` swap payload.
+     * @return ABI-encoded ranked route swap payload.
      */
-    function _buildSingleHopSwapData(address _tokenIn, address _tokenOut, uint16 _bps)
-        internal
-        view
-        returns (bytes memory)
-    {
+    function _buildRankedSwapData(uint16 _bps) internal pure returns (bytes memory) {
         if (_bps == 0) return bytes("");
 
-        bytes memory _path = abi.encodePacked(_tokenIn, pool.fee(), _tokenOut);
         uint256 _amountIn = AMOUNT_IN_BPS_FLAG | uint256(_bps);
-        bytes memory _input = abi.encode(uniStrategy, _amountIn, uint256(0), _path, true);
+        uint8[2] memory routeIds;
+        uint256[2] memory amountOutMins;
+        routeIds[0] = ROUTE_V3_SINGLE_HOP;
+        routeIds[1] = ROUTE_V4_SINGLE_HOP;
 
-        bytes[] memory _inputs = new bytes[](1);
-        _inputs[0] = _input;
-
-        // deadline=0 -> strategy replaces with (block.timestamp + DEFAULT_SWAP_DEADLINE)
-        return abi.encode(_inputs, uint256(0));
+        return abi.encode(_amountIn, uint256(0), uint8(2), routeIds, amountOutMins);
     }
 
     /**
