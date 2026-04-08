@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e">
     <diagram id="takasure-architecture" name="Takasure Protocol Architecture">
-        <mxGraphModel dx="1257" dy="853" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="4200" pageHeight="3400" math="0" shadow="0">
+        <mxGraphModel dx="2193" dy="1347" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="4200" pageHeight="3400" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -19,7 +19,7 @@
                 <mxCell id="e_am_mm" value="registers modules" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#1565C0;fontSize=9;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="grp_managers" source="addressmgr" target="modulemgr" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="grp_tokens" value="Tokens &amp; Referrals" style="rounded=1;fillColor=#F3E5F5;strokeColor=#7B1FA2;fontStyle=1;fontSize=14;verticalAlign=top;spacingTop=5;container=1;collapsible=0;" parent="1" vertex="1">
+                <mxCell id="grp_tokens" value="Token" style="rounded=1;fillColor=#F3E5F5;strokeColor=#7B1FA2;fontStyle=1;fontSize=14;verticalAlign=top;spacingTop=5;container=1;collapsible=0;" parent="1" vertex="1">
                     <mxGeometry x="1325" y="80" width="270" height="170" as="geometry"/>
                 </mxCell>
                 <mxCell id="revshare_nft" value="&lt;b&gt;RevShareNFT&lt;/b&gt; (ERC721, UUPS)&lt;hr size=&quot;1&quot;&gt;&lt;font size=&quot;1&quot;&gt;Max Supply: 8,820&lt;br&gt;Pioneer Mint Timestamps&lt;br&gt;Transfer Lock Period&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#7B1FA2;fontSize=11;verticalAlign=top;" parent="grp_tokens" vertex="1">
@@ -31,7 +31,7 @@
                 <mxCell id="takasure_reserve" value="&lt;b&gt;TakasureReserve&lt;/b&gt; (UUPS)&lt;hr size=&quot;1&quot;&gt;&lt;font size=&quot;1&quot;&gt;Member Data &amp;amp; Balances | Fund / Claim / Total Reserves&lt;br&gt;Cash Flow Tracking (monthly/daily) | Loss Ratios &amp;amp; Multipliers | RPOOL&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE0B2;strokeColor=#E65100;fontSize=11;verticalAlign=top;" parent="grp_core" vertex="1">
                     <mxGeometry x="25" y="30" width="550" height="75" as="geometry"/>
                 </mxCell>
-                <mxCell id="e_am_bm" value="module state" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#1565C0;dashed=1;fontSize=9;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" parent="1" source="modulemgr" edge="1" target="6">
+                <mxCell id="e_am_bm" value="module state" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#1565C0;dashed=1;fontSize=9;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" parent="1" source="modulemgr" target="6" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="100" y="200" as="sourcePoint"/>
                         <mxPoint x="100" y="540" as="targetPoint"/>
@@ -77,10 +77,10 @@
                 <mxCell id="l4t" value="SaveFunds" style="text;html=1;fontSize=9;" parent="legend" vertex="1">
                     <mxGeometry x="30" y="73" width="60" height="16" as="geometry"/>
                 </mxCell>
-                <mxCell id="l9" value="" style="rounded=1;fillColor=#B2DFDB;strokeColor=#00796B;" vertex="1" parent="legend">
+                <mxCell id="l9" value="" style="rounded=1;fillColor=#B2DFDB;strokeColor=#00796B;" parent="legend" vertex="1">
                     <mxGeometry x="10" y="92" width="16" height="12" as="geometry"/>
                 </mxCell>
-                <mxCell id="l9t" value="Multi-level Module" style="text;html=1;fontSize=9;" vertex="1" parent="legend">
+                <mxCell id="l9t" value="Multi-level Module" style="text;html=1;fontSize=9;" parent="legend" vertex="1">
                     <mxGeometry x="30" y="89" width="90" height="16" as="geometry"/>
                 </mxCell>
                 <mxCell id="l5" value="" style="rounded=1;fillColor=#E1BEE7;strokeColor=#7B1FA2;" parent="legend" vertex="1">
@@ -95,10 +95,10 @@
                 <mxCell id="l7t" value="Chainlink" style="text;html=1;fontSize=9;" parent="legend" vertex="1">
                     <mxGeometry x="150" y="41" width="55" height="16" as="geometry"/>
                 </mxCell>
-                <mxCell id="l10" value="" style="rounded=1;fillColor=#FF4444;strokeColor=#CC0000;" vertex="1" parent="legend">
+                <mxCell id="l10" value="" style="rounded=1;fillColor=#FF4444;strokeColor=#CC0000;" parent="legend" vertex="1">
                     <mxGeometry x="130" y="60" width="16" height="12" as="geometry"/>
                 </mxCell>
-                <mxCell id="l10t" value="User Entry" style="text;html=1;fontSize=9;" vertex="1" parent="legend">
+                <mxCell id="l10t" value="User Entry" style="text;html=1;fontSize=9;" parent="legend" vertex="1">
                     <mxGeometry x="150" y="57" width="55" height="16" as="geometry"/>
                 </mxCell>
                 <mxCell id="ll1" value="" style="endArrow=classic;strokeColor=#E65100;" parent="legend" edge="1">
@@ -128,19 +128,19 @@
                 <mxCell id="ll3t" value="Reference" style="text;html=1;fontSize=9;" parent="legend" vertex="1">
                     <mxGeometry x="175" y="108" width="55" height="16" as="geometry"/>
                 </mxCell>
-                <mxCell id="ep_nft" value="&lt;b&gt;User Entry&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF4444;strokeColor=#CC0000;fontColor=#FFFFFF;fontSize=11;arcSize=30;" vertex="1" parent="1">
+                <mxCell id="ep_nft" value="&lt;b&gt;User Entry&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF4444;strokeColor=#CC0000;fontColor=#FFFFFF;fontSize=11;arcSize=30;" parent="1" vertex="1">
                     <mxGeometry x="1650" y="100" width="120" height="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="ep_nft_arrow" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#FF4444;strokeWidth=2;dashed=1;endArrow=blockThin;endFill=1;" edge="1" parent="1">
+                <mxCell id="ep_nft_arrow" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#FF4444;strokeWidth=2;dashed=1;endArrow=blockThin;endFill=1;" parent="1" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="1650" y="115" as="sourcePoint"/>
                         <mxPoint x="1600" y="115" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="ep_tlm" value="&lt;b&gt;User Entry&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF4444;strokeColor=#CC0000;fontColor=#FFFFFF;fontSize=11;arcSize=30;" vertex="1" parent="1">
+                <mxCell id="ep_tlm" value="&lt;b&gt;User Entry&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF4444;strokeColor=#CC0000;fontColor=#FFFFFF;fontSize=11;arcSize=30;" parent="1" vertex="1">
                     <mxGeometry x="-50" y="1244" width="120" height="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="40" value="deploy benefit" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#1565C0;fontSize=9;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="addressmgr" target="10">
+                <mxCell id="40" value="deploy benefit" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#1565C0;fontSize=9;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" parent="1" source="addressmgr" target="10" edge="1">
                     <mxGeometry x="-0.8144" relative="1" as="geometry">
                         <mxPoint x="450" y="180" as="sourcePoint"/>
                         <mxPoint x="30" y="1570" as="targetPoint"/>
@@ -152,7 +152,7 @@
                         <mxPoint as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="43" value="validete callers and roles" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#1565C0;dashed=1;fontSize=9;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.144;entryY=0.001;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="addressmgr" target="6">
+                <mxCell id="43" value="validete callers and roles" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#1565C0;dashed=1;fontSize=9;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.144;entryY=0.001;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" source="addressmgr" target="6" edge="1">
                     <mxGeometry x="-0.5028" relative="1" as="geometry">
                         <mxPoint x="720" y="240" as="sourcePoint"/>
                         <mxPoint x="330" y="460" as="targetPoint"/>
@@ -163,7 +163,7 @@
                         <mxPoint y="-1" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="44" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#1565C0;dashed=1;fontSize=9;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="addressmgr" target="grp_core">
+                <mxCell id="44" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#1565C0;dashed=1;fontSize=9;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="addressmgr" target="grp_core" edge="1">
                     <mxGeometry x="-0.5028" relative="1" as="geometry">
                         <mxPoint x="300" y="240" as="sourcePoint"/>
                         <mxPoint x="297" y="519" as="targetPoint"/>
@@ -173,7 +173,7 @@
                         <mxPoint y="-1" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e_submgmt_tr" value="recurring payments (SubscriptionModule)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#E65100;fontSize=9;entryX=0.999;entryY=0.548;entryDx=0;entryDy=0;entryPerimeter=0;exitX=0.25;exitY=1;exitDx=0;exitDy=0;" parent="1" target="grp_core" edge="1" source="7">
+                <mxCell id="e_submgmt_tr" value="recurring payments (SubscriptionModule)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#E65100;fontSize=9;entryX=0.999;entryY=0.548;entryDx=0;entryDy=0;entryPerimeter=0;exitX=0.25;exitY=1;exitDx=0;exitDy=0;" parent="1" source="7" target="grp_core" edge="1">
                     <mxGeometry x="0.7825" relative="1" as="geometry">
                         <mxPoint x="1860" y="600" as="sourcePoint"/>
                         <mxPoint x="1100" y="380" as="targetPoint"/>
@@ -185,7 +185,7 @@
                         <mxPoint as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e_sub_tr" value="contributions (SubscriptionModule)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#E65100;fontSize=9;exitX=0.75;exitY=1;exitDx=0;exitDy=0;" parent="1" edge="1" source="7">
+                <mxCell id="e_sub_tr" value="contributions (SubscriptionModule)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#E65100;fontSize=9;exitX=0.75;exitY=1;exitDx=0;exitDy=0;" parent="1" source="7" edge="1">
                     <mxGeometry x="0.8826" relative="1" as="geometry">
                         <mxPoint x="1860" y="570" as="sourcePoint"/>
                         <mxPoint x="1100" y="340" as="targetPoint"/>
@@ -197,7 +197,7 @@
                         <mxPoint x="-1" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e_bm_tr" value="update reserve (BenefitModule)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#E65100;fontSize=9;entryX=1;entryY=0.25;entryDx=0;entryDy=0;exitX=0.398;exitY=0.99;exitDx=0;exitDy=0;exitPerimeter=0;" parent="1" target="grp_core" edge="1" source="10">
+                <mxCell id="e_bm_tr" value="update reserve (BenefitModule)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#E65100;fontSize=9;entryX=1;entryY=0.25;entryDx=0;entryDy=0;exitX=0.398;exitY=0.99;exitDx=0;exitDy=0;exitPerimeter=0;" parent="1" source="10" target="grp_core" edge="1">
                     <mxGeometry x="0.9127" relative="1" as="geometry">
                         <mxPoint x="1860" y="540" as="sourcePoint"/>
                         <mxPoint x="1100" y="340" as="targetPoint"/>
@@ -209,7 +209,7 @@
                         <mxPoint x="1" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e_rsm_nft" value="query NFT holdings" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#7B1FA2;fontSize=9;entryX=1;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" parent="1" target="grp_tokens" edge="1" source="13">
+                <mxCell id="e_rsm_nft" value="query NFT holdings" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#7B1FA2;fontSize=9;entryX=1;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" parent="1" source="13" target="grp_tokens" edge="1">
                     <mxGeometry x="0.8459" relative="1" as="geometry">
                         <mxPoint x="1710" y="1070" as="sourcePoint"/>
                         <mxPoint x="1200" y="250" as="targetPoint"/>
@@ -220,7 +220,7 @@
                         <mxPoint as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="46" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#1565C0;dashed=1;fontSize=9;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="addressmgr" target="grp_savefunds">
+                <mxCell id="46" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#1565C0;dashed=1;fontSize=9;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="addressmgr" target="grp_savefunds" edge="1">
                     <mxGeometry x="-0.5028" relative="1" as="geometry">
                         <mxPoint x="300" y="240" as="sourcePoint"/>
                         <mxPoint x="-170" y="2190" as="targetPoint"/>
@@ -232,7 +232,7 @@
                         <mxPoint y="-1" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e_ar_tlm" value="trigger level-down" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#37474F;fontSize=9;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="auto_runner" target="tlm_backend">
+                <mxCell id="e_ar_tlm" value="trigger level-down" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#37474F;fontSize=9;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="auto_runner" target="tlm_backend" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <Array as="points">
                             <mxPoint x="116" y="2500"/>
@@ -241,7 +241,7 @@
                         </Array>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="53" value="" style="group" vertex="1" connectable="0" parent="1">
+                <mxCell id="53" value="" style="group" parent="1" vertex="1" connectable="0">
                     <mxGeometry x="31" y="1716" width="1299" height="670" as="geometry"/>
                 </mxCell>
                 <mxCell id="grp_savefunds" value="SaveFunds Investment" style="rounded=1;fillColor=#FCE4EC;strokeColor=#C62828;fontStyle=1;fontSize=14;verticalAlign=top;spacingTop=5;container=0;collapsible=0;" parent="53" vertex="1">
@@ -259,7 +259,7 @@
                 <mxCell id="ccip_receiver" value="&lt;b&gt;CCIPReceiver&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CFD8DC;strokeColor=#37474F;fontSize=10;" parent="grp_chainlink" vertex="1">
                     <mxGeometry x="340" y="35" width="130" height="40" as="geometry"/>
                 </mxCell>
-                <mxCell id="e_ccip_ext" value="cross-chain" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9E9E9E;fontSize=9;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" parent="grp_chainlink" source="ccip_sender" edge="1" target="ccip_receiver">
+                <mxCell id="e_ccip_ext" value="cross-chain" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9E9E9E;fontSize=9;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" parent="grp_chainlink" source="ccip_sender" target="ccip_receiver" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="1669" y="-991" as="sourcePoint"/>
                         <mxPoint x="419" y="-120" as="targetPoint"/>
@@ -270,16 +270,16 @@
                         </Array>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e_ar_v" value="trigger invest" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#37474F;fontSize=9;entryX=0.25;entryY=1;entryDx=0;entryDy=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" parent="53" edge="1" target="sf_vault" source="auto_runner">
+                <mxCell id="e_ar_v" value="trigger invest" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#37474F;fontSize=9;entryX=0.25;entryY=1;entryDx=0;entryDy=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" parent="53" source="auto_runner" target="sf_vault" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="1369" y="249" as="sourcePoint"/>
                         <mxPoint x="1269" y="249" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="ep_sf" value="&lt;b&gt;User Entry&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF4444;strokeColor=#CC0000;fontColor=#FFFFFF;fontSize=11;arcSize=30;" vertex="1" parent="53">
+                <mxCell id="ep_sf" value="&lt;b&gt;User Entry&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF4444;strokeColor=#CC0000;fontColor=#FFFFFF;fontSize=11;arcSize=30;" parent="53" vertex="1">
                     <mxGeometry x="154" width="120" height="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="ep_sf_arrow" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#FF4444;strokeWidth=2;dashed=1;endArrow=blockThin;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="53" source="ep_sf" target="sf_vault">
+                <mxCell id="ep_sf_arrow" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#FF4444;strokeWidth=2;dashed=1;endArrow=blockThin;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="53" source="ep_sf" target="sf_vault" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="39" y="259" as="sourcePoint"/>
                         <mxPoint x="94" y="259" as="targetPoint"/>
@@ -315,16 +315,16 @@
                         <mxPoint x="-4" y="6" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="47" value="&lt;b&gt;Strategy2&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8BBD0;strokeColor=#C62828;fontSize=11;verticalAlign=top;container=0;" vertex="1" parent="53">
+                <mxCell id="47" value="&lt;b&gt;Strategy2&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8BBD0;strokeColor=#C62828;fontSize=11;verticalAlign=top;container=0;" parent="53" vertex="1">
                     <mxGeometry x="769" y="350" width="80" height="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="49" value="&lt;b&gt;Strategy3&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8BBD0;strokeColor=#C62828;fontSize=11;verticalAlign=top;container=0;" vertex="1" parent="53">
+                <mxCell id="49" value="&lt;b&gt;Strategy3&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8BBD0;strokeColor=#C62828;fontSize=11;verticalAlign=top;container=0;" parent="53" vertex="1">
                     <mxGeometry x="859" y="350" width="80" height="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="50" value="&lt;b&gt;StrategyN&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8BBD0;strokeColor=#C62828;fontSize=11;verticalAlign=top;container=0;" vertex="1" parent="53">
+                <mxCell id="50" value="&lt;b&gt;StrategyN&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8BBD0;strokeColor=#C62828;fontSize=11;verticalAlign=top;container=0;" parent="53" vertex="1">
                     <mxGeometry x="946.5" y="350" width="80" height="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="51" value="cross-chain deposit" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#37474F;fontSize=9;entryX=0.75;entryY=1;entryDx=0;entryDy=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" edge="1" parent="53" source="ccip_receiver" target="sf_vault">
+                <mxCell id="51" value="cross-chain deposit" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#37474F;fontSize=9;entryX=0.75;entryY=1;entryDx=0;entryDy=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" parent="53" source="ccip_receiver" target="sf_vault" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="95" y="615" as="sourcePoint"/>
                         <mxPoint x="164" y="344" as="targetPoint"/>
@@ -461,13 +461,13 @@
                         </Array>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="33" value="&lt;b&gt;User router&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCEDC8;strokeColor=#33691E;fontSize=11;verticalAlign=top;dashed=1;" vertex="1" parent="1">
+                <mxCell id="33" value="&lt;b&gt;User router&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCEDC8;strokeColor=#33691E;fontSize=11;verticalAlign=top;dashed=1;" parent="1" vertex="1">
                     <mxGeometry x="161" y="1240.5" width="100" height="35" as="geometry"/>
                 </mxCell>
-                <mxCell id="34" value="&lt;b&gt;Operator router&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCEDC8;strokeColor=#33691E;fontSize=11;verticalAlign=top;dashed=1;" vertex="1" parent="1">
+                <mxCell id="34" value="&lt;b&gt;Operator router&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCEDC8;strokeColor=#33691E;fontSize=11;verticalAlign=top;dashed=1;" parent="1" vertex="1">
                     <mxGeometry x="183" y="753" width="100" height="35" as="geometry"/>
                 </mxCell>
-                <mxCell id="36" value="derive calls" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#FF0000;fontSize=8;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.01;entryY=0.327;entryDx=0;entryDy=0;movable=1;resizable=1;rotatable=1;deletable=1;editable=1;locked=0;connectable=1;entryPerimeter=0;" edge="1" parent="1" source="34" target="29">
+                <mxCell id="36" value="derive calls" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#FF0000;fontSize=8;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.01;entryY=0.327;entryDx=0;entryDy=0;movable=1;resizable=1;rotatable=1;deletable=1;editable=1;locked=0;connectable=1;entryPerimeter=0;" parent="1" source="34" target="29" edge="1">
                     <mxGeometry y="-13" relative="1" as="geometry">
                         <mxPoint as="offset"/>
                         <Array as="points">
@@ -477,7 +477,7 @@
                         <mxPoint x="621.1999999999998" y="613.41" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="37" value="derive calls" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#FF0000;fontSize=8;movable=1;resizable=1;rotatable=1;deletable=1;editable=1;locked=0;connectable=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="34">
+                <mxCell id="37" value="derive calls" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#FF0000;fontSize=8;movable=1;resizable=1;rotatable=1;deletable=1;editable=1;locked=0;connectable=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" parent="1" source="34" edge="1">
                     <mxGeometry y="-13" relative="1" as="geometry">
                         <mxPoint as="offset"/>
                         <Array as="points">
@@ -488,7 +488,7 @@
                         <mxPoint x="756" y="810" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="38" value="derive calls" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#FF0000;fontSize=8;movable=1;resizable=1;rotatable=1;deletable=1;editable=1;locked=0;connectable=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="33" target="27">
+                <mxCell id="38" value="derive calls" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#FF0000;fontSize=8;movable=1;resizable=1;rotatable=1;deletable=1;editable=1;locked=0;connectable=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="33" target="27" edge="1">
                     <mxGeometry y="-13" relative="1" as="geometry">
                         <mxPoint as="offset"/>
                         <Array as="points"/>
@@ -496,13 +496,13 @@
                         <mxPoint x="767" y="862" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="tlm_user" value="&lt;b&gt;TokenLockModule&lt;/b&gt;&lt;br&gt;(UUPS)&lt;hr size=&quot;1&quot;&gt;&lt;font size=&quot;1&quot;&gt;Lock / Unlock Tokens&lt;br&gt;Level Up / Level Down&lt;br&gt;Leaderboard Rev Share&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B2DFDB;strokeColor=#00796B;fontSize=11;verticalAlign=top;movable=1;resizable=1;rotatable=1;deletable=1;editable=1;locked=0;connectable=1;" vertex="1" parent="1">
+                <mxCell id="tlm_user" value="&lt;b&gt;TokenLockModule&lt;/b&gt;&lt;br&gt;(UUPS)&lt;hr size=&quot;1&quot;&gt;&lt;font size=&quot;1&quot;&gt;Lock / Unlock Tokens&lt;br&gt;Level Up / Level Down&lt;br&gt;Leaderboard Rev Share&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B2DFDB;strokeColor=#00796B;fontSize=11;verticalAlign=top;movable=1;resizable=1;rotatable=1;deletable=1;editable=1;locked=0;connectable=1;" parent="1" vertex="1">
                     <mxGeometry x="312" y="1193.97" width="173.86" height="134.03" as="geometry"/>
                 </mxCell>
-                <mxCell id="tlm_backend" value="&lt;b&gt;TokenLockModule&lt;/b&gt;&lt;br&gt;(UUPS)&lt;hr size=&quot;1&quot;&gt;&lt;font size=&quot;1&quot;&gt;Auto Level-Down&lt;br&gt;(after 7-day cooldown)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B2DFDB;strokeColor=#00796B;fontSize=11;verticalAlign=top;movable=1;resizable=1;rotatable=1;deletable=1;editable=1;locked=0;connectable=1;" vertex="1" parent="1">
+                <mxCell id="tlm_backend" value="&lt;b&gt;TokenLockModule&lt;/b&gt;&lt;br&gt;(UUPS)&lt;hr size=&quot;1&quot;&gt;&lt;font size=&quot;1&quot;&gt;Auto Level-Down&lt;br&gt;(after 7-day cooldown)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B2DFDB;strokeColor=#00796B;fontSize=11;verticalAlign=top;movable=1;resizable=1;rotatable=1;deletable=1;editable=1;locked=0;connectable=1;" parent="1" vertex="1">
                     <mxGeometry x="572" y="613.41" width="170" height="76.76" as="geometry"/>
                 </mxCell>
-                <mxCell id="tlm_link" value="same module" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#00796B;fontSize=8;dashed=1;dashPattern=8 4;strokeWidth=2;exitX=0.25;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="tlm_user" target="tlm_backend">
+                <mxCell id="tlm_link" value="same module" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#00796B;fontSize=8;dashed=1;dashPattern=8 4;strokeWidth=2;exitX=0.25;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="tlm_user" target="tlm_backend" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <Array as="points">
                             <mxPoint x="356" y="1148"/>
@@ -511,7 +511,7 @@
                         </Array>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e_tlm_ms" value="read/write level" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#2E7D32;fontSize=8;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="tlm_user" target="9">
+                <mxCell id="e_tlm_ms" value="read/write level" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#2E7D32;fontSize=8;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" parent="1" source="tlm_user" target="9" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <Array as="points">
                             <mxPoint x="399" y="1120"/>
@@ -519,14 +519,14 @@
                         </Array>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e_sub_tlm" value="auto-lock on join" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#2E7D32;fontSize=8;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1">
+                <mxCell id="e_sub_tlm" value="auto-lock on join" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#2E7D32;fontSize=8;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" parent="1" edge="1">
                     <mxGeometry x="-0.1758" y="6" relative="1" as="geometry">
                         <mxPoint x="543.931818181818" y="1252.9850000000001" as="sourcePoint"/>
                         <mxPoint x="485.8599999999999" y="1252.9850000000001" as="targetPoint"/>
                         <mxPoint as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e_tlm_rev" value="level-based benefits" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#2E7D32;fontSize=8;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;" edge="1" parent="1" source="tlm_user" target="14">
+                <mxCell id="e_tlm_rev" value="level-based benefits" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#2E7D32;fontSize=8;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;" parent="1" source="tlm_user" target="14" edge="1">
                     <mxGeometry x="0.7594" relative="1" as="geometry">
                         <Array as="points">
                             <mxPoint x="500" y="1228"/>
@@ -535,7 +535,7 @@
                         <mxPoint as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e_rsm_tlm" value="leaderboard rev share" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#2E7D32;fontSize=8;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.301;entryY=1.005;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="13" target="tlm_user">
+                <mxCell id="e_rsm_tlm" value="leaderboard rev share" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#2E7D32;fontSize=8;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.301;entryY=1.005;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" source="13" target="tlm_user" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <Array as="points">
                             <mxPoint x="1124" y="1380"/>
@@ -543,7 +543,7 @@
                         </Array>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="ep_tlm_arrow" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#FF4444;strokeWidth=2;dashed=1;endArrow=blockThin;endFill=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="ep_tlm" target="33">
+                <mxCell id="ep_tlm_arrow" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#FF4444;strokeWidth=2;dashed=1;endArrow=blockThin;endFill=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" parent="1" source="ep_tlm" target="33" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="70" y="1255" as="sourcePoint"/>
                         <mxPoint x="313" y="1255" as="targetPoint"/>
