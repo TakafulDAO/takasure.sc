@@ -1,0 +1,180 @@
+@startuml Takasure Protocol - Contracts Architecture
+
+title **Takasure Protocol - Contracts Architecture**
+
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundcorner 15
+skinparam linetype ortho
+
+' ==================== COLOR DEFINITIONS ====================
+skinparam rectangle {
+    FontSize 11
+}
+
+' ==================== LEGEND ====================
+legend right
+  |<#BBDEFB>     | Managers |
+  |<#FFE0B2>     | Core |
+  |<#C8E6C9>     | Modules |
+  |<#F8BBD0>     | SaveFunds |
+  |<#B2DFDB>     | Token Lock |
+  |<#E1BEE7>     | NFT |
+  |<#CFD8DC>     | Chainlink |
+  |<#FF4444>     | User Entry |
+end legend
+
+' ==================== MANAGERS ====================
+rectangle "**Managers**" as grp_managers #E3F2FD;line:1565C0;line.bold {
+
+    rectangle "**AddressManager** (UUPS)\n----\n<size:9>Protocol Address Registry\nRole Management (time-delayed)\nBenefitModule Deployer (BeaconProxy)</size>" as addressmgr #BBDEFB;line:1565C0
+
+    rectangle "**ModuleManager** (UUPS)\n----\n<size:9>Module State Tracking\n(Enabled / Disabled / Paused / Deprecated)\nModule Validation</size>" as modulemgr #BBDEFB;line:1565C0
+
+    addressmgr -right-> modulemgr : registers modules
+}
+
+' ==================== CORE PROTOCOL ====================
+rectangle "**Core Protocol**" as grp_core #FFF3E0;line:E65100;line.bold {
+
+    rectangle "**TakasureReserve** (UUPS)\n----\n<size:9>Member Data & Balances | Fund / Claim / Total Reserves\nCash Flow Tracking (monthly/daily) | Loss Ratios & Multipliers | RPOOL</size>" as takasure_reserve #FFE0B2;line:E65100
+}
+
+' ==================== MODULES CONTAINER ====================
+rectangle "**Modules**" as grp_modules #E8F5E9;line:2E7D32;line.bold {
+
+    ' === Subscription Subsystem ===
+    rectangle "**Subscription**" as ss_subscription #CCFFCC;line:2E7D32;line.dashed {
+
+        rectangle "**TokenLockModule**\n(UUPS)\n----\n<size:9>Lock / Unlock Tokens\nLevel Up / Level Down\nLeaderboard Rev Share\nAuto Level-Down (7-day cooldown)</size>" as tlm_user #B2DFDB;line:00796B
+
+        rectangle "**SubscriptionMgmt\nModule** (UUPS)\n----\n<size:9>Association Plans\nInitial Subscriptions\nRefund Handling\nRecurring Payments\nCancellations / Reinstatements</size>" as submgmt #C8E6C9;line:2E7D32
+
+        rectangle "**KYCModule**\n(UUPS)\n----\n<size:9>KYC Verification\nMember Activation</size>" as kyc #C8E6C9;line:2E7D32
+    }
+
+    ' === Benefits Subsystem ===
+    rectangle "**Benefits**" as ss_benefits #CCFFCC;line:2E7D32;line.dashed {
+
+        rectangle "**BenefitModule**\n(BeaconProxy)\n----\n<size:9>Member Joins\nFee Calculation\nContribution Transfer</size>" as benefit #C8E6C9;line:2E7D32
+
+        rectangle "**Benefit2**" as benefit2 #C8E6C9;line:2E7D32
+        rectangle "**Benefit3**" as benefit3 #C8E6C9;line:2E7D32
+        rectangle "**BenefitN**" as benefitN #C8E6C9;line:2E7D32
+    }
+
+    ' === Revenue Shares Subsystem ===
+    rectangle "**Revenue Shares**" as ss_revshares #CCFFCC;line:2E7D32;line.dashed {
+
+        rectangle "**RevShareModule**\n(UUPS)\n----\n<size:9>Revenue Distribution\nPioneers 75% / Takadao 25%\nPer-NFT Revenue Tracking</size>" as revshare #C8E6C9;line:2E7D32
+
+        rectangle "**RevShareNFT** (ERC721, UUPS)\n----\n<size:9>Max Supply: 8,820\nPioneer Mint Timestamps\nTransfer Lock Period</size>" as revshare_nft #E1BEE7;line:7B1FA2
+    }
+
+    ' === Referral Subsystem ===
+    rectangle "**Referral**" as ss_referral #CCFFCC;line:2E7D32;line.dashed {
+
+        rectangle "**ReferralRewards\nModule** (UUPS)\n----\n<size:9>Parent-Child Relationships\nTiered Rewards (4 layers)</size>" as referral #C8E6C9;line:2E7D32
+    }
+
+    ' === Storage Subsystem ===
+    rectangle "**Storage**" as ss_storage #CCFFCC;line:2E7D32;line.dashed {
+
+        rectangle "**MainStorage\nModule** (UUPS)\n----\n<size:9>Association Members\nBenefit Members\nGeneric Storage</size>" as storage #C8E6C9;line:2E7D32
+    }
+
+    ' === Rev & Fee Distribution Subsystem ===
+    rectangle "**Rev & Fee Distribution**" as ss_revfee #CCFFCC;line:2E7D32;line.dashed {
+
+        rectangle "**RevenueAndFee\nModule** (UUPS)\n----\n<size:9>Revenue Types\nFee Distribution & Management\nDiscounts???</size>" as revfee #C8E6C9;line:2E7D32
+    }
+
+    ' === Routers ===
+    rectangle "**User router**" as user_router #DCEDC8;line:33691E;line.dashed
+    rectangle "**Operator router**" as operator_router #DCEDC8;line:33691E;line.dashed
+}
+
+' ==================== SAVEFUNDS INVESTMENT ====================
+rectangle "**SaveFunds Investment**" as grp_savefunds #FCE4EC;line:C62828;line.bold {
+
+    rectangle "**SFVault** (ERC4626, UUPS)\n----\n<size:9>USDC Deposits\nFee Structure (Mgmt + Performance)\nTVL Caps</size>" as sf_vault #F8BBD0;line:C62828
+
+    rectangle "**SFStrategyAggregator** (UUPS)\n----\n<size:9>Multi-Strategy Routing\nTarget Weights (BPS)\nEmergency Exits</size>" as sf_aggregator #F8BBD0;line:C62828
+
+    rectangle "**Strategies**" as sf_strategies #FFEEF3;line:C62828 {
+        rectangle "**SFUniswapV3Strategy** (UUPS)\n----\n<size:9>LP Position Management\nRebalancing\nSwaps via Universal Router</size>" as sf_univ3 #F8BBD0;line:C62828
+
+        rectangle "**SFTwapValuator**\n<size:9>TWAP / Spot Pricing</size>" as sf_twap #F8BBD0;line:C62828
+
+        rectangle "**Strategy2**" as strat2 #F8BBD0;line:C62828
+        rectangle "**Strategy3**" as strat3 #F8BBD0;line:C62828
+        rectangle "**StrategyN**" as stratN #F8BBD0;line:C62828
+    }
+}
+
+' ==================== CHAINLINK INTEGRATION ====================
+rectangle "**Chainlink Integration**" as grp_chainlink #ECEFF1;line:37474F;line.bold {
+
+    rectangle "**AutomationRunner**" as auto_runner #CFD8DC;line:37474F
+    rectangle "**CCIPSender**" as ccip_sender #CFD8DC;line:37474F
+    rectangle "**CCIPReceiver**" as ccip_receiver #CFD8DC;line:37474F
+}
+
+' ==================== USER ENTRY POINTS ====================
+rectangle "**User Entry**" as ep_tlm #FF4444;line:CC0000;text:white
+rectangle "**User Entry**" as ep_sub #FF4444;line:CC0000;text:white
+rectangle "**User Entry**" as ep_nft #FF4444;line:CC0000;text:white
+rectangle "**User Entry**" as ep_sf #FF4444;line:CC0000;text:white
+
+' ==================== ARROWS ====================
+
+' --- Manager arrows ---
+addressmgr -[#1565C0,dashed]-> grp_core : <size:9>validate callers and roles</size>
+addressmgr -[#1565C0,dashed]-> grp_modules : <size:9>validate callers and roles</size>
+addressmgr -[#1565C0,dashed]-> grp_savefunds : <size:9>validate callers and roles</size>
+modulemgr -[#1565C0,dashed]-> grp_modules : <size:9>module state</size>
+addressmgr -[#1565C0]-> benefit : <size:9>deploy benefit</size>
+
+' --- Intra-subscription arrows ---
+submgmt -[#2E7D32]-> tlm_user : <size:8>auto-lock on join</size>
+submgmt -[#2E7D32]-> kyc : <size:8>verify identity</size>
+
+' --- Cross-subsystem arrows ---
+submgmt -[#2E7D32]-> storage : <size:8>manage members</size>
+submgmt -[#2E7D32]-> referral : <size:8>distribute rewards</size>
+submgmt -[#2E7D32]-> revfee : <size:8>track revenue</size>
+benefit -[#2E7D32]-> kyc : <size:8>verify identity</size>
+benefit -[#2E7D32]-> storage : <size:8>read/write members</size>
+benefit -[#2E7D32]-> revfee : <size:8>track fees</size>
+kyc -[#2E7D32]-> storage : <size:8>activate</size>
+revfee -[#2E7D32]-> referral : <size:8>compute rewards</size>
+tlm_user -[#2E7D32]-> storage : <size:8>read/write level</size>
+tlm_user -[#2E7D32]-> revfee : <size:8>level-based benefits</size>
+revshare -[#2E7D32]-> tlm_user : <size:8>leaderboard rev share</size>
+
+' --- RevShare internal ---
+revshare -[#7B1FA2]-> revshare_nft : <size:9>query NFT holdings</size>
+
+' --- Module to Core arrows ---
+submgmt -[#E65100]-> grp_core : <size:9>recurring payments</size>
+benefit -[#E65100]-> grp_core : <size:9>update reserve</size>
+
+' --- SaveFunds internal arrows ---
+sf_vault -[#C62828]-> sf_aggregator : <size:9>route funds</size>
+sf_aggregator -[#C62828]-> sf_strategies : <size:9>allocate capital</size>
+sf_univ3 -[#C62828]-> sf_twap : <size:9>price quote</size>
+
+' --- Chainlink arrows ---
+auto_runner -[#37474F]-> sf_vault : <size:9>trigger invest</size>
+auto_runner -[#37474F]-> tlm_user : <size:9>trigger level-down</size>
+ccip_sender -[#9E9E9E]-> ccip_receiver : <size:9>cross-chain</size>
+ccip_receiver -[#37474F]-> sf_vault : <size:9>cross-chain deposit</size>
+
+' --- User Entry arrows ---
+ep_tlm -[#FF4444,dashed,bold]-> tlm_user
+ep_sub -[#FF4444,dashed,bold]-> submgmt
+ep_nft -[#FF4444,dashed,bold]-> revshare_nft
+ep_sf -[#FF4444,dashed,bold]-> sf_vault
+
+@enduml
