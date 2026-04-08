@@ -1,0 +1,148 @@
+@startuml RevenueAndFeeModule Fee Routing
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam sequenceArrowColor #555555
+skinparam sequenceLifeLineBorderColor #444444
+skinparam sequenceParticipantBorderColor #444444
+skinparam sequenceBoxBorderColor #666666
+skinparam defaultFontSize 11
+
+title RevenueAndFeeModule - Fee Routing And Revenue Dispatch
+autonumber
+
+actor "SubscriptionMgmtModule" as sm
+participant "BenefitModule\n(ALP / benefit joins)" as benefit
+participant "SFVault" as sf
+
+box "Revenue / Fee Distribution" #E8F5E9
+  participant "RevenueAndFeeModule" as raf #C8E6C9
+  collections "TLD Fund Buckets\n(in-module balances)" as fund #FFF3E0
+end box
+
+participant "ReferralRewardsModule" as rr #C8E6C9
+participant "RevShareModule" as rsm #C8E6C9
+participant "USDC / ContributionToken" as usdc #EEEEEE
+
+note over raf
+Responsibilities in v1:
+- classify incoming fee-side cash by command
+- forward referral reserve to ReferralRewardsModule
+- forward wakala share to RevShareModule
+- retain the TLD Fund portion in per-command buckets
+
+Not handled here:
+- referral math or parent queueing
+- rsNFT / Takadao split math
+- crypto-card settlement
+end note
+
+== Flow 1: Association Fee ==
+
+sm -> rr ++ : calculateReferralRewards(...)
+rr --> sm : feeBaseAmount,\ndiscount,\nreferralReserveAmount
+deactivate rr
+
+sm -> raf ++ : dispatchFee(\nCMD_ASSOCIATION_FEE,\nfeeBaseAmount + referralReserveAmount,\nabi.encode(referralReserveAmount)\n)
+raf -> raf : validate caller\nvalidate command\nvalidate module state
+raf -> usdc : transferFrom(sm, raf, totalAmount)
+
+alt referralReserveAmount > 0
+  raf -> usdc : transfer(rr, referralReserveAmount)
+end
+
+raf -> raf : wakalaShare = feeBaseAmount * 20 / 100\nfundCredit = feeBaseAmount - wakalaShare
+
+alt wakalaShare > 0
+  raf -> usdc : approve(rsm, wakalaShare)
+  raf -> rsm ++ : notifyNewRevenue(wakalaShare)
+  rsm --> raf : ok
+  deactivate rsm
+end
+
+raf -> fund : bucket[CMD_ASSOCIATION_FEE] += fundCredit
+raf --> sm : FeeDispatchResult(\nfundCredit,\nwakalaShare,\nreferralReserveAmount\n)
+deactivate raf
+
+note right of sm
+SubscriptionMgmtModule still owns:
+- collecting member or coupon funds
+- discount handling
+- parent reward timing
+- member accounting
+end note
+
+== Flow 2: ALP / Benefit Fee ==
+
+alt Initial benefit join
+  benefit -> rr ++ : calculateReferralRewards(...)
+  rr --> benefit : feeBaseAmount,\ndiscount,\nreferralReserveAmount
+  deactivate rr
+
+  benefit -> raf ++ : dispatchFee(\nCMD_ALP_FEE,\nfeeBaseAmount + referralReserveAmount,\nabi.encode(referralReserveAmount)\n)
+  raf -> raf : same routing logic as association fee
+  raf -> usdc : transferFrom(benefit, raf, totalAmount)
+  alt referralReserveAmount > 0
+    raf -> usdc : transfer(rr, referralReserveAmount)
+  end
+  raf -> usdc : approve(rsm, wakalaShare)
+  raf -> rsm ++ : notifyNewRevenue(wakalaShare)
+  rsm --> raf : ok
+  deactivate rsm
+  raf -> fund : bucket[CMD_ALP_FEE] += fundCredit
+  raf --> benefit : FeeDispatchResult(...)
+  deactivate raf
+else Recurring benefit payment
+  sm -> raf ++ : dispatchFee(\nCMD_ALP_FEE,\nfeeAmount,\nbytes(\"\")\n)
+  raf -> raf : referralReserveAmount = 0
+  raf -> usdc : transferFrom(sm, raf, feeAmount)
+  raf -> usdc : approve(rsm, wakalaShare)
+  raf -> rsm ++ : notifyNewRevenue(wakalaShare)
+  rsm --> raf : ok
+  deactivate rsm
+  raf -> fund : bucket[CMD_ALP_FEE] += fundCredit
+  raf --> sm : FeeDispatchResult(...)
+  deactivate raf
+end
+
+== Flow 3: SaveFunds / Investment Fee ==
+
+sf -> raf ++ : dispatchFee(\nCMD_SF_MANAGEMENT_FEE |\nCMD_SF_PERFORMANCE_FEE |\nCMD_INVESTMENT_FEE,\nfeeAmount,\nbytes(\"\")\n)
+raf -> raf : validate caller == SFVault\nvalidate contribution token only\nreferralReserveAmount = 0
+raf -> usdc : transferFrom(sf, raf, feeAmount)
+raf -> raf : wakalaShare = feeAmount * 20 / 100\nfundCredit = feeAmount - wakalaShare
+raf -> usdc : approve(rsm, wakalaShare)
+raf -> rsm ++ : notifyNewRevenue(wakalaShare)
+rsm --> raf : ok
+deactivate rsm
+raf -> fund : bucket[command] += fundCredit
+raf --> sf : FeeDispatchResult(\nfundCredit,\nwakalaShare,\n0\n)
+deactivate raf
+
+== Flow 4: Compatibility Revenue Deposit ==
+
+note over raf
+Temporary compatibility path for older flows such as
+SubscriptionModule.transferSubscriptionToReserve(...).
+This is not fee routing.
+It just buckets already-classified revenue in the TLD Fund.
+end note
+
+sm -> raf ++ : depositRevenue(amount, RevenueType)
+raf -> raf : map RevenueType to a compatibility bucket
+raf -> usdc : transferFrom(sm, raf, amount)
+raf -> fund : compatibilityBucket[RevenueType] += amount
+raf --> sm : ok
+deactivate raf
+
+== Flow 5: Reserved Card Commands ==
+
+note over raf
+Reserved in v1:
+- CMD_CARD_SUBSCRIPTION_FEE
+- CMD_CARD_USAGE_FEE
+
+Both revert UnsupportedRoute()
+until the card-provider and card-holder sinks exist.
+end note
+
+@enduml
