@@ -234,6 +234,10 @@ deploy-chainlink-invest-upkeep:
 	@forge clean
 	@forge script deploy/ccipAutomation/DeploySaveFundsInvestAutomationRunner.s.sol:DeploySaveFundsInvestAutomationRunner $(NETWORK_ARGS)
 
+deploy-chainlink-invest-cre-receiver:
+	@forge clean
+	@forge script deploy/ccipAutomation/DeploySaveFundsInvestCREReceiver.s.sol:DeploySaveFundsInvestCREReceiver $(NETWORK_ARGS)
+
 prepare-chainlink-invest-upkeep-upgrade:
 	@forge clean
 	@forge script deploy/ccipAutomation/PrepareSaveFundsInvestAutomationRunnerUpgrade.s.sol:PrepareSaveFundsInvestAutomationRunnerUpgrade $(NETWORK_ARGS)
