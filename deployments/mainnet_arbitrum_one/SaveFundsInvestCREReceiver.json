@@ -1,0 +1,332 @@
+{
+    "address": "0xF2d7C430691AB51D364d096b3A383C49b0027B73",
+    "abi": [
+        {
+            "type": "constructor",
+            "inputs": [
+                {
+                    "name": "_addressManager",
+                    "type": "address",
+                    "internalType": "contract IAddressManager"
+                }
+            ],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "consumedReports",
+            "inputs": [
+                {
+                    "name": "executionKey",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "consumed",
+                    "type": "bool",
+                    "internalType": "bool"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "expectedAuthor",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "author_",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "expectedWorkflowId",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "expectedWorkflowName",
+            "inputs": [],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "bytes10",
+                    "internalType": "bytes10"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "function",
+            "name": "onReport",
+            "inputs": [
+                {
+                    "name": "metadata",
+                    "type": "bytes",
+                    "internalType": "bytes"
+                },
+                {
+                    "name": "report",
+                    "type": "bytes",
+                    "internalType": "bytes"
+                }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setExpectedWorkflowId",
+            "inputs": [
+                {
+                    "name": "_id",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
+                }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "setExpectedWorkflowName",
+            "inputs": [
+                {
+                    "name": "_name",
+                    "type": "string",
+                    "internalType": "string"
+                }
+            ],
+            "outputs": [],
+            "stateMutability": "nonpayable"
+        },
+        {
+            "type": "function",
+            "name": "supportsInterface",
+            "inputs": [
+                {
+                    "name": "interfaceId",
+                    "type": "bytes4",
+                    "internalType": "bytes4"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "",
+                    "type": "bool",
+                    "internalType": "bool"
+                }
+            ],
+            "stateMutability": "view"
+        },
+        {
+            "type": "event",
+            "name": "OnExpectedWorkflowIdUpdated",
+            "inputs": [
+                {
+                    "name": "previousId",
+                    "type": "bytes32",
+                    "indexed": true,
+                    "internalType": "bytes32"
+                },
+                {
+                    "name": "newId",
+                    "type": "bytes32",
+                    "indexed": true,
+                    "internalType": "bytes32"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnExpectedWorkflowNameUpdated",
+            "inputs": [
+                {
+                    "name": "previousName",
+                    "type": "bytes10",
+                    "indexed": true,
+                    "internalType": "bytes10"
+                },
+                {
+                    "name": "newName",
+                    "type": "bytes10",
+                    "indexed": true,
+                    "internalType": "bytes10"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnReportConsumed",
+            "inputs": [
+                {
+                    "name": "executionKey",
+                    "type": "bytes32",
+                    "indexed": true,
+                    "internalType": "bytes32"
+                },
+                {
+                    "name": "reportHash",
+                    "type": "bytes32",
+                    "indexed": true,
+                    "internalType": "bytes32"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "event",
+            "name": "OnReportReceived",
+            "inputs": [
+                {
+                    "name": "executionKey",
+                    "type": "bytes32",
+                    "indexed": true,
+                    "internalType": "bytes32"
+                },
+                {
+                    "name": "workflowId",
+                    "type": "bytes32",
+                    "indexed": true,
+                    "internalType": "bytes32"
+                },
+                {
+                    "name": "workflowOwner",
+                    "type": "address",
+                    "indexed": true,
+                    "internalType": "address"
+                },
+                {
+                    "name": "workflowName",
+                    "type": "bytes10",
+                    "indexed": false,
+                    "internalType": "bytes10"
+                },
+                {
+                    "name": "reportHash",
+                    "type": "bytes32",
+                    "indexed": false,
+                    "internalType": "bytes32"
+                }
+            ],
+            "anonymous": false
+        },
+        {
+            "type": "error",
+            "name": "SaveFundsInvestCREReceiver__DuplicateReport",
+            "inputs": [
+                {
+                    "name": "executionKey",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
+                }
+            ]
+        },
+        {
+            "type": "error",
+            "name": "SaveFundsInvestCREReceiver__InvalidAuthor",
+            "inputs": [
+                {
+                    "name": "received",
+                    "type": "address",
+                    "internalType": "address"
+                },
+                {
+                    "name": "expected",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ]
+        },
+        {
+            "type": "error",
+            "name": "SaveFundsInvestCREReceiver__InvalidMetadataLength",
+            "inputs": [
+                {
+                    "name": "length",
+                    "type": "uint256",
+                    "internalType": "uint256"
+                }
+            ]
+        },
+        {
+            "type": "error",
+            "name": "SaveFundsInvestCREReceiver__InvalidSender",
+            "inputs": [
+                {
+                    "name": "sender",
+                    "type": "address",
+                    "internalType": "address"
+                },
+                {
+                    "name": "expected",
+                    "type": "address",
+                    "internalType": "address"
+                }
+            ]
+        },
+        {
+            "type": "error",
+            "name": "SaveFundsInvestCREReceiver__InvalidWorkflowId",
+            "inputs": [
+                {
+                    "name": "received",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
+                },
+                {
+                    "name": "expected",
+                    "type": "bytes32",
+                    "internalType": "bytes32"
+                }
+            ]
+        },
+        {
+            "type": "error",
+            "name": "SaveFundsInvestCREReceiver__InvalidWorkflowName",
+            "inputs": [
+                {
+                    "name": "received",
+                    "type": "bytes10",
+                    "internalType": "bytes10"
+                },
+                {
+                    "name": "expected",
+                    "type": "bytes10",
+                    "internalType": "bytes10"
+                }
+            ]
+        },
+        {
+            "type": "error",
+            "name": "SaveFundsInvestCREReceiver__NotAddressZero",
+            "inputs": []
+        },
+        {
+            "type": "error",
+            "name": "SaveFundsInvestCREReceiver__NotAuthorizedCaller",
+            "inputs": []
+        },
+        {
+            "type": "error",
+            "name": "SaveFundsInvestCREReceiver__WorkflowNameRequiresAuthorValidation",
+            "inputs": []
+        }
+    ]
+}
