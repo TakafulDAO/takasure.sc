@@ -166,16 +166,25 @@ contract SaveFundsInvestCREReceiver is IReceiver {
      * @dev This function intentionally does not decode the report into investment parameters.
      *      The downstream runner re-reads live state and revalidates execution conditions
      *      onchain so investment logic remains centralized in the runner.
+     * @dev The flow of this call will be:
+     *      1. CRE workflow -> runner.checkUpkeep. If true, continue.
+     *      2. CRE workflow -> forwarder
+     *      3. forwarder -> receiver.onReport
+     *      4. receiver.onReport -> runner.performUpkeep
+     *      5. runner.performUpkeep -> vault.investIntoStrategy. Runner must hold KEEPER role
      * @custom:invariant A consumed `(metadata, report)` pair cannot be processed again.
      * @custom:invariant Successful executions always call `runner.performUpkeep("")` exactly once.
      * @custom:invariant Successful executions always mark `consumedReports[keccak256(abi.encode(metadata, report))]`
      *      as `true`.
      */
     function onReport(bytes calldata metadata, bytes calldata report) external override {
-        address _forwarder = forwarder();
-
         // Only the configured Chainlink forwarder may deliver reports to this receiver.
-        require(msg.sender == _forwarder, SaveFundsInvestCREReceiver__InvalidSender(msg.sender, _forwarder));
+        // The forwarder is the Chainlink entrypoint authorized to deliver validated CRE workflow reports to `onReport`.
+        address _forwarder = addressManager.getProtocolAddressByName(CRE_FORWARDER_NAME).addr;
+        require(
+            msg.sender == _forwarder,
+            SaveFundsInvestCREReceiver__InvalidSender(msg.sender, _forwarder)
+        );
         require(
             metadata.length == 0 || metadata.length == WORKFLOW_METADATA_LENGTH,
             SaveFundsInvestCREReceiver__InvalidMetadataLength(metadata.length)
@@ -233,18 +242,6 @@ contract SaveFundsInvestCREReceiver is IReceiver {
     /*//////////////////////////////////////////////////////////////
                                 GETTERS
     //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Returns the resolved CRE forwarder address.
-     * @return forwarder_ Address registered in AddressManager under `EXTERNAL__CL_CRE_FORWARDER`.
-     * @dev The forwarder is the Chainlink entrypoint authorized to deliver validated CRE
-     *      workflow reports to `onReport`.
-     * @custom:invariant Successful return value always equals the address currently registered
-     *      in AddressManager under `EXTERNAL__CL_CRE_FORWARDER`.
-     */
-    function forwarder() public view returns (address forwarder_) {
-        forwarder_ = addressManager.getProtocolAddressByName(CRE_FORWARDER_NAME).addr;
-    }
 
     /**
      * @notice Returns the resolved expected CRE workflow owner.
