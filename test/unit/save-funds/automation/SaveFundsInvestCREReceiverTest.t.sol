@@ -133,12 +133,18 @@ contract SaveFundsInvestCREReceiverTest is Test {
 
         bytes memory metadata = _encodeMetadata(bytes32(0), receiver.expectedWorkflowName(), address(0));
 
-        vm.expectRevert(SaveFundsInvestCREReceiver.SaveFundsInvestCREReceiver__WorkflowNameRequiresAuthorValidation.selector);
+        vm.expectRevert(
+            SaveFundsInvestCREReceiver.SaveFundsInvestCREReceiver__WorkflowNameRequiresAuthorValidation.selector
+        );
         vm.prank(forwarder);
         receiver.onReport(metadata, "");
     }
 
-    function _encodeMetadata(bytes32 workflowId, bytes10 workflowName, address owner_) internal pure returns (bytes memory) {
+    function _encodeMetadata(bytes32 workflowId, bytes10 workflowName, address owner_)
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encodePacked(workflowId, workflowName, owner_);
     }
 }

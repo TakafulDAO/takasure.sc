@@ -19,10 +19,7 @@ contract DeploySaveFundsInvestCREReceiver is Script, GetContractAddress {
         AddressManager addressManager = AddressManager(_getContractAddress(block.chainid, "AddressManager"));
         address runnerProxy = _getContractAddress(block.chainid, "SaveFundsInvestAutomationRunner");
 
-        _requireConfiguredAddress(addressManager, SAVE_FUNDS_RUNNER_NAME, runnerProxy);
         console2.log("Deploying SaveFundsInvestCREReceiver...");
-
-        require(addressManager.hasRole(Roles.KEEPER, runnerProxy), "SaveFundsInvestAutomationRunner must remain KEEPER");
 
         vm.startBroadcast();
         receiver = new SaveFundsInvestCREReceiver(addressManager);
@@ -30,20 +27,11 @@ contract DeploySaveFundsInvestCREReceiver is Script, GetContractAddress {
 
         console2.log("SaveFundsInvestCREReceiver deployed at:");
         console2.logAddress(address(receiver));
-        console2.log("Configured runner:");
-        console2.logAddress(runnerProxy);
+        _logRunnerConfiguration(addressManager, runnerProxy);
         _logOptionalConfiguredAddress(addressManager, CRE_FORWARDER_NAME, "Configured CRE forwarder");
         _logOptionalConfiguredAddress(addressManager, CRE_WORKFLOW_OWNER_NAME, "Configured CRE workflow owner");
 
         return receiver;
-    }
-
-    function _requireConfiguredAddress(AddressManager addressManager, string memory name, address expectedAddr)
-        internal
-        view
-    {
-        ProtocolAddress memory protocolAddress = addressManager.getProtocolAddressByName(name);
-        require(protocolAddress.addr == expectedAddr, string.concat(name, " is not configured as expected"));
     }
 
     function _logOptionalConfiguredAddress(AddressManager addressManager, string memory name, string memory label)
@@ -56,6 +44,25 @@ contract DeploySaveFundsInvestCREReceiver is Script, GetContractAddress {
         } catch {
             console2.log(name);
             console2.log("is not configured yet in AddressManager.");
+        }
+    }
+
+    function _logRunnerConfiguration(AddressManager addressManager, address expectedRunner) internal view {
+        try addressManager.getProtocolAddressByName(SAVE_FUNDS_RUNNER_NAME) returns (ProtocolAddress memory protocolAddress) {
+            require(
+                protocolAddress.addr == expectedRunner, string.concat(SAVE_FUNDS_RUNNER_NAME, " is not configured as expected")
+            );
+            require(
+                addressManager.hasRole(Roles.KEEPER, protocolAddress.addr),
+                "SaveFundsInvestAutomationRunner must remain KEEPER"
+            );
+            console2.log("Configured runner:");
+            console2.logAddress(protocolAddress.addr);
+            return;
+        } catch {
+            console2.log(SAVE_FUNDS_RUNNER_NAME);
+            console2.log("is not configured yet in AddressManager.");
+            console2.log("Configure it before activating the CRE workflow.");
         }
     }
 }

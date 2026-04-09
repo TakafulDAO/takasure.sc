@@ -42,7 +42,6 @@ contract SaveFundsInvestCREReceiver is IReceiver {
     string private constant CRE_WORKFLOW_OWNER_NAME = "ADMIN__CRE_WORKFLOW_OWNER";
 
     IAddressManager private immutable addressManager;
-    ISaveFundsInvestAutomationRunnerExecutor private immutable runner; // Business-logic contract that performs the investment cycle
 
     /// @notice Optional expected workflow name encoded in CRE's `bytes10` metadata format.
     bytes10 public expectedWorkflowName; // `bytes10(0)` disables workflow-name validation.
@@ -100,9 +99,6 @@ contract SaveFundsInvestCREReceiver is IReceiver {
     constructor(IAddressManager _addressManager) {
         require(address(_addressManager) != address(0), SaveFundsInvestCREReceiver__NotAddressZero());
         addressManager = _addressManager;
-        runner = ISaveFundsInvestAutomationRunnerExecutor(
-            addressManager.getProtocolAddressByName(SAVE_FUNDS_RUNNER_NAME).addr
-        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -180,11 +176,9 @@ contract SaveFundsInvestCREReceiver is IReceiver {
     function onReport(bytes calldata metadata, bytes calldata report) external override {
         // Only the configured Chainlink forwarder may deliver reports to this receiver.
         // The forwarder is the Chainlink entrypoint authorized to deliver validated CRE workflow reports to `onReport`.
-        address _forwarder = addressManager.getProtocolAddressByName(CRE_FORWARDER_NAME).addr;
-        require(
-            msg.sender == _forwarder,
-            SaveFundsInvestCREReceiver__InvalidSender(msg.sender, _forwarder)
-        );
+        address forwarder = addressManager.getProtocolAddressByName(CRE_FORWARDER_NAME).addr;
+        address runner = addressManager.getProtocolAddressByName(SAVE_FUNDS_RUNNER_NAME).addr;
+        require(msg.sender == forwarder, SaveFundsInvestCREReceiver__InvalidSender(msg.sender, forwarder));
         require(
             metadata.length == 0 || metadata.length == WORKFLOW_METADATA_LENGTH,
             SaveFundsInvestCREReceiver__InvalidMetadataLength(metadata.length)
@@ -233,7 +227,7 @@ contract SaveFundsInvestCREReceiver is IReceiver {
         emit OnReportReceived(executionKey, workflowId, workflowOwner, workflowName, reportHash);
 
         // The receiver authenticates CRE context; the runner remains the execution engine.
-        runner.performUpkeep("");
+        ISaveFundsInvestAutomationRunnerExecutor(runner).performUpkeep("");
 
         consumedReports[executionKey] = true;
         emit OnReportConsumed(executionKey, reportHash);
