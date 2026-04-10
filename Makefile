@@ -246,6 +246,10 @@ upgrade-chainlink-invest-upkeep:
 	@forge clean
 	@forge script deploy/ccipAutomation/UpgradeSaveFundsInvestAutomationRunner.s.sol:UpgradeSaveFundsInvestAutomationRunner $(NETWORK_ARGS)
 
+# CRE
+simulate-cre-workflow:
+	@cre -R ./cre workflow simulate save-funds-invest -T production-settings
+
 NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KEY) --broadcast
 
 ifeq ($(findstring --network arb_one,$(ARGS)),--network arb_one)
