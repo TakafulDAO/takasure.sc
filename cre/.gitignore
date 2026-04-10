@@ -1,0 +1,6 @@
+**/dist/
+**/node_modules/
+**/.cre_build_tmp.js
+binary.wasm.br.b64
+.env
+.env.*
