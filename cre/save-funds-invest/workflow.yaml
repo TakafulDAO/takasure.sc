@@ -1,0 +1,12 @@
+# ==========================================================================
+# SAVE FUNDS INVEST WORKFLOW SETTINGS
+# ==========================================================================
+# Workflow-specific target settings.
+
+production-settings:
+    user-workflow:
+        workflow-name: "takadao-save-funds-automation"
+    workflow-artifacts:
+        workflow-path: "./main.ts"
+        config-path: "./config.production.json"
+        secrets-path: ""
