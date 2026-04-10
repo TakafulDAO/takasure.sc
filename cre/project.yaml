@@ -1,0 +1,17 @@
+# ==========================================================================
+# TAKASURE CRE PROJECT SETTINGS
+# ==========================================================================
+# Project-level target settings for CRE CLI commands.
+
+production-settings:
+    # cre-cli:
+    #   don-family: "zone-a"
+    # Leave this commented out unless Chainlink explicitly assigns a workflow DON family
+    # for your organization or deployment environment.
+    account:
+        workflow-owner-address: "0x5f8325Edcf41cb262420fa000ea5FAFC521e04D7"
+    rpcs:
+        - chain-name: ethereum-mainnet
+          url: ${ETHEREUM_MAINNET_RPC_URL}
+        - chain-name: ethereum-mainnet-arbitrum-1
+          url: ${ARBITRUM_MAINNET_RPC_URL}
