@@ -3,4 +3,6 @@
 **/.cre_build_tmp.js
 binary.wasm.br.b64
 .env
-.env.*
+.env.local
+.env.production
+!.env.example
