@@ -24,6 +24,7 @@ import { z } from "zod"
 const runnerAbi = parseAbi([
   "function checkUpkeep(bytes) external view returns (bool, bytes)",
 ])
+const REPORT_PAYLOAD_VERSION = 1
 
 export const configSchema = z.object({
   schedule: z.string(),
@@ -88,8 +89,15 @@ function buildReportPayload(triggerOutput: CronPayload, performData: Hex): Hex {
   // The scheduled execution timestamp is the safest replay-protection nonce available to the
   // workflow because it is unique per cron firing and does not depend on mutable contract state.
   return encodeAbiParameters(
-    parseAbiParameters("uint256 scheduledExecutionTimeSeconds, uint32 scheduledExecutionTimeNanos, bytes performData"),
-    [scheduledExecutionTime.seconds, scheduledExecutionTime.nanos, performData],
+    parseAbiParameters(
+      "uint8 version, uint256 scheduledExecutionTimeSeconds, uint32 scheduledExecutionTimeNanos, bytes performData",
+    ),
+    [
+      REPORT_PAYLOAD_VERSION,
+      scheduledExecutionTime.seconds,
+      scheduledExecutionTime.nanos,
+      performData,
+    ],
   )
 }
 
