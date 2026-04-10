@@ -1,0 +1,9 @@
+{
+  "schedule": "0 0 * * * *",
+  "evm": {
+    "chainSelectorName": "ethereum-mainnet-arbitrum-1",
+    "runnerAddress": "0x27fD7B2aefC55065Eb9192F28887E5db391406f8",
+    "receiverAddress": "0xF2d7C430691AB51D364d096b3A383C49b0027B73",
+    "gasLimit": "3000000"
+  }
+}
