@@ -4,6 +4,7 @@ const Safe = require("@safe-global/protocol-kit").default
 
 const SAFE_ADDRESS = "0x3F2bdF387e75C9896F94C6BA1aC36754425aCf5F"
 const DEFAULT_TX_SERVICE_URL = "https://safe-transaction-arbitrum.safe.global/api/v1"
+const SAFE_APP_NETWORK_PREFIX = "arb1"
 
 async function postJson(url, body) {
     const fetch =
@@ -78,10 +79,31 @@ async function sendToSafe({ to, data, value }) {
 
     await postJson(proposeUrl, payload)
 
-    return { safeTxHash, txServiceUrl }
+    return {
+        safeTxHash,
+        txServiceUrl,
+        queueUrl: buildSafeQueueUrl({ safeAddress }),
+        txServiceTransactionUrl: buildSafeServiceTransactionUrl({
+            txServiceUrl,
+            safeTxHash,
+        }),
+    }
+}
+
+function buildSafeQueueUrl({ safeAddress = SAFE_ADDRESS, chainPrefix = SAFE_APP_NETWORK_PREFIX } = {}) {
+    return `https://app.safe.global/transactions/queue?safe=${chainPrefix}:${ethers.utils.getAddress(safeAddress)}`
+}
+
+function buildSafeServiceTransactionUrl({ txServiceUrl = DEFAULT_TX_SERVICE_URL, safeTxHash }) {
+    if (!safeTxHash) return null
+    const base = String(txServiceUrl).replace(/\/+$/, "")
+    return `${base}/multisig-transactions/${safeTxHash}/`
 }
 
 module.exports = {
+    buildSafeQueueUrl,
+    buildSafeServiceTransactionUrl,
     SAFE_ADDRESS,
+    SAFE_APP_NETWORK_PREFIX,
     sendToSafe,
 }

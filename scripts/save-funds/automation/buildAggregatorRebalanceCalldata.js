@@ -41,6 +41,16 @@ const {
     loadDeploymentAddress,
     resolveStrategies,
 } = require("./chainConfig")
+const { deliverDiscordNotification } = require("./discordWebhook")
+const {
+    buildRebalanceNotificationSummary,
+    decodeSingleStrategyRebalancePlan,
+    ensureNotificationSupported,
+    parseDiscordNotificationFlags,
+    readStrategyPreState,
+    renderDiscordPayload,
+    renderSummaryText,
+} = require("./rebalanceNotification")
 
 const OTHER_RATIO_AUTO_ALIASES = new Set(["auto", "best"])
 
@@ -537,6 +547,8 @@ async function main() {
                 "  --sendToSafe                      Propose tx to the Arbitrum One Safe (requires --chain arb-one).",
                 "  --sendTx                          Send tx onchain for Arbitrum Sepolia (requires --chain arb-sepolia).",
                 "  --simulateTenderly                Simulate on Tenderly before sending (arb-one only).",
+                "  --discordNotification             Send a Discord summary after simulation/proposal (arb-one, single UniV3 only).",
+                "  --discorNotification              Deprecated alias for --discordNotification.",
                 "  --tenderlyGas <uint>              Gas limit override for Tenderly simulation.",
                 "  --tenderlyBlock <uint|latest>     Block number for Tenderly simulation.",
                 "  --tenderlySimulationType <str>    Optional Tenderly simulation type.",
@@ -575,15 +587,27 @@ async function main() {
     const wantsSendToSafe = process.argv.includes("--sendToSafe")
     const wantsSendTx = process.argv.includes("--sendTx")
     const wantsSimTenderly = process.argv.includes("--simulateTenderly")
+    const { wantsDiscordNotification, usedDeprecatedAlias } = parseDiscordNotificationFlags()
+    const needsTenderlySimulation = wantsSimTenderly || wantsDiscordNotification
+
+    if (usedDeprecatedAlias) {
+        console.warn("warning: --discorNotification is deprecated; use --discordNotification")
+    }
     if (wantsSendToSafe && wantsSendTx) {
         console.error("Use only one of --sendToSafe or --sendTx")
         process.exit(1)
     }
     const chainArg = getArg(
         "chain",
-        wantsSendToSafe ? "arb-one" : wantsSendTx ? "arb-sepolia" : undefined,
+        wantsSendToSafe ? "arb-one" : wantsSendTx ? "arb-sepolia" : wantsDiscordNotification ? "arb-one" : undefined,
     )
     const chainCfg = getChainConfig(chainArg)
+    try {
+        ensureNotificationSupported({ wantsDiscordNotification, chainCfg, wantsSendTx })
+    } catch (err) {
+        console.error(err.message || err)
+        process.exit(1)
+    }
     if (wantsSendToSafe && (!chainCfg || chainCfg.name !== "arb-one")) {
         console.error("--sendToSafe is only supported for --chain arb-one")
         process.exit(1)
@@ -592,8 +616,8 @@ async function main() {
         console.error("--sendTx is only supported for --chain arb-sepolia")
         process.exit(1)
     }
-    if (wantsSimTenderly && (!chainCfg || chainCfg.name !== "arb-one")) {
-        console.error("--simulateTenderly is only supported for --chain arb-one")
+    if (needsTenderlySimulation && (!chainCfg || chainCfg.name !== "arb-one")) {
+        console.error("--simulateTenderly and --discordNotification are only supported for --chain arb-one")
         process.exit(1)
     }
 
@@ -726,11 +750,27 @@ async function main() {
     console.log("data:", data)
     console.log("rebalanceCalldata:", rebalanceCalldata)
 
-    if (wantsSimTenderly) {
+    let notificationContext = null
+    if (wantsDiscordNotification) {
+        try {
+            const decodedPlan = decodeSingleStrategyRebalancePlan({ chainCfg, data })
+            const preState = await readStrategyPreState({
+                chainCfg,
+                strategyAddress: decodedPlan.strategyAddress,
+            })
+            notificationContext = { decodedPlan, preState }
+        } catch (err) {
+            console.error(err.message || err)
+            process.exit(1)
+        }
+    }
+
+    let sim = null
+    if (needsTenderlySimulation) {
         const { SAFE_ADDRESS } = require("./safeSubmit")
         const { simulateTenderly } = require("./tenderlySimulate")
         const target = loadDeploymentAddress(chainCfg, "SFStrategyAggregator")
-        const sim = await simulateTenderly({
+        sim = await simulateTenderly({
             chainCfg,
             from: SAFE_ADDRESS,
             to: target,
@@ -753,13 +793,18 @@ async function main() {
         console.log("tenderlyStatus: ok")
     }
 
+    let safeResult = null
     if (wantsSendToSafe) {
         const { SAFE_ADDRESS, sendToSafe } = require("./safeSubmit")
         const target = loadDeploymentAddress(chainCfg, "SFStrategyAggregator")
-        const result = await sendToSafe({ to: target, data: rebalanceCalldata, value: "0" })
+        safeResult = await sendToSafe({ to: target, data: rebalanceCalldata, value: "0" })
         console.log("safeAddress:", SAFE_ADDRESS)
-        console.log("safeTxHash:", result.safeTxHash)
-        console.log("txServiceUrl:", result.txServiceUrl)
+        console.log("safeTxHash:", safeResult.safeTxHash)
+        console.log("txServiceUrl:", safeResult.txServiceUrl)
+        if (safeResult.queueUrl) console.log("safeQueueUrl:", safeResult.queueUrl)
+        if (safeResult.txServiceTransactionUrl) {
+            console.log("safeTxServiceTransactionUrl:", safeResult.txServiceTransactionUrl)
+        }
     }
 
     if (wantsSendTx) {
@@ -774,6 +819,28 @@ async function main() {
         console.log("txHash:", result.hash)
         console.log("blockNumber:", result.blockNumber)
         console.log("gasUsed:", result.gasUsed)
+    }
+
+    if (wantsDiscordNotification) {
+        try {
+            const summary = await buildRebalanceNotificationSummary({
+                chainCfg,
+                preState: notificationContext.preState,
+                decodedPlan: notificationContext.decodedPlan,
+                simulation: sim,
+                safeResult,
+            })
+            const payload = renderDiscordPayload(summary, notificationContext.preState)
+            const summaryText = renderSummaryText(summary, notificationContext.preState)
+            await deliverDiscordNotification({
+                webhookUrl: process.env.DISCORD_WEBHOOK_URL,
+                payload,
+                summaryText,
+            })
+        } catch (err) {
+            console.error(err.message || err)
+            process.exit(1)
+        }
     }
 }
 

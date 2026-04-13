@@ -5,6 +5,8 @@ This folder contains helper scripts to build calldata and optionally:
 - propose to Safe (arb-one),
 - broadcast onchain (arb-sepolia).
 
+All command examples in this README assume `bash`/`zsh`.
+
 ## `.env` setup
 
 Add these variables to the repo root `.env`:
@@ -23,6 +25,11 @@ TENDERLY_PROJECT_SLUG=
 # -------- Required only for --sendToSafe (arb-one) --------
 SAFE_PROPOSER_PK=
 SAFE_TX_SERVICE_URL=https://safe-transaction-arbitrum.safe.global/api/v1
+
+# -------- Required only for --discordNotification --------
+DISCORD_WEBHOOK_URL=
+# Optional override for the webhook display name
+DISCORD_WEBHOOK_USERNAME=
 
 # -------- Required only for --sendTx (arb-sepolia) --------
 TESTNET_PK=
@@ -61,6 +68,12 @@ These scripts share the same execution pattern:
 3. Add `--sendToSafe` (arb-one) to propose transaction to Safe.
 4. Or add `--sendTx` (arb-sepolia) to broadcast directly.
 
+When `--discordNotification` is used on the rebalance builder:
+- the script auto-runs Tenderly if you did not pass `--simulateTenderly`,
+- reuses that same simulation for the signer summary,
+- proposes to Safe first when `--sendToSafe` is present,
+- then sends exactly one Discord message after the Safe proposal succeeds.
+
 Recommended safe flow:
 1. Run with `--simulateTenderly`.
 2. Confirm `tenderlyStatus: ok` and inspect `tenderlyDashboardUrl`.
@@ -89,6 +102,13 @@ These are shared across:
 
 - `--simulateTenderly`  
   Simulate transaction in Tenderly (arb-one only).
+
+- `--discordNotification`  
+  Send a signer-friendly Discord summary after simulation / Safe proposal.  
+  Current v1 scope: `buildAggregatorRebalanceCalldata.js` only, `arb-one` only, single `uniV3` rebalance bundle only.
+
+- `--discorNotification`  
+  Deprecated alias for `--discordNotification`.
 
 - `--tenderlyGas <uint>`  
   Override simulation gas limit.
@@ -200,6 +220,14 @@ Builds calldata for:
 - `--data <0x>`  
   Raw ABI-encoded rebalance bundle.
 
+- `--discordNotification`  
+  Send a Discord signer summary for the simulated/proposed rebalance.  
+  v1 guardrails:
+  - only `--chain arb-one`
+  - only a single resolved `SFUniswapV3Strategy`
+  - no support for raw `--data 0x` / multi-strategy bundle notifications
+  - requires `DISCORD_WEBHOOK_URL`
+
 - `--otherRatioBps <bps|auto>`  
   Rebalance supports `auto`, which estimates the LP-target ratio for the target tick range using the live spot price first.
 
@@ -232,15 +260,15 @@ node scripts/save-funds/automation/buildAggregatorRebalanceCalldata.js \
 node scripts/save-funds/automation/buildAggregatorRebalanceCalldata.js \
   --chain arb-one \
   --strategies uniV3 \
-  --tickLower <new_lower_tick> \
-  --tickUpper <new_upper_tick> \
+  --tickLower -9 \
+  --tickUpper -4 \
   --otherRatioBps auto \
   --swapToOtherFee 100 \
   --swapToOtherBps 10000 \
   --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
   --pmDeadline $(( $(date +%s) + 1800 )) \
-  --simulateTenderly
+  --discordNotification
 ```
 
 3. Rebalance all active sub-strategies with empty payloads
@@ -252,10 +280,38 @@ node scripts/save-funds/automation/buildAggregatorRebalanceCalldata.js \
   --simulateTenderly
 ```
 
+4. Rebalance, propose to Safe, and send a Discord signer summary
+
+```bash
+node scripts/save-funds/automation/buildAggregatorRebalanceCalldata.js \
+  --chain arb-one \
+  --strategies uniV3 \
+  --tickLower -594 \
+  --tickUpper 606 \
+  --otherRatioBps auto \
+  --swapToOtherFee 100 \
+  --swapToOtherBps 10000 \
+  --swapToUnderlyingFee 100 \
+  --swapToUnderlyingBps 10000 \
+  --pmDeadline 0 \
+  --sendToSafe \
+  --discordNotification
+```
+
 Expected simulation output includes:
 - `tenderlySimulationId`
 - `tenderlyDashboardUrl`
 - `tenderlyStatus: ok`
+
+Expected Discord summary fields include:
+- current position (`USDC` + `USDT`)
+- swap cost
+- new tick lower / upper
+- new position (`USDC` + `USDT`)
+- remainings (`USDC` swept to vault / `USDT` left in strategy)
+- deadline in Riyadh time
+- Safe queue / tx-service links when `--sendToSafe` is used
+- Uniswap position link from the simulated token ID, with the note that it only becomes usable after signing and can change if the transaction is rebuilt
 
 > [!TIP]
 > Swap-builder mode supports a single strategy only.
