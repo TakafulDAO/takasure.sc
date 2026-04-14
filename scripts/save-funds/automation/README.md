@@ -260,14 +260,15 @@ node scripts/save-funds/automation/buildAggregatorRebalanceCalldata.js \
 node scripts/save-funds/automation/buildAggregatorRebalanceCalldata.js \
   --chain arb-one \
   --strategies uniV3 \
-  --tickLower -9 \
-  --tickUpper -4 \
+  --tickLower <new_lower_tick> \
+  --tickUpper <new_upper_tick> \
   --otherRatioBps auto \
   --swapToOtherFee 100 \
   --swapToOtherBps 10000 \
   --swapToUnderlyingFee 100 \
   --swapToUnderlyingBps 10000 \
   --pmDeadline $(( $(date +%s) + 1800 )) \
+  --simulateTenderly \
   --discordNotification
 ```
 
