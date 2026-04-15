@@ -4,6 +4,9 @@ pragma solidity 0.8.28;
 
 import {Script, console2, GetContractAddress} from "scripts/utils/GetContractAddress.s.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
+import {
+    SaveFundsInvestAutomationRunner
+} from "contracts/helpers/chainlink/automation/SaveFundsInvestAutomationRunner.sol";
 
 contract UpgradeSaveFundsInvestAutomationRunner is Script, GetContractAddress {
     function run() external returns (address newImplementation) {
@@ -14,7 +17,12 @@ contract UpgradeSaveFundsInvestAutomationRunner is Script, GetContractAddress {
 
         vm.startBroadcast();
 
-        Upgrades.upgradeProxy(proxy, "SaveFundsInvestAutomationRunner.sol", "");
+        // Upgrades.upgradeProxy(proxy, "SaveFundsInvestAutomationRunner.sol", "");
+        Upgrades.upgradeProxy(
+            proxy,
+            "SaveFundsInvestAutomationRunner.sol",
+            abi.encodeCall(SaveFundsInvestAutomationRunner.initializeV2, ())
+        );
 
         vm.stopBroadcast();
 

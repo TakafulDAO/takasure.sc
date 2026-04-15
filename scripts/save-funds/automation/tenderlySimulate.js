@@ -45,6 +45,77 @@ function extractSimulationId(result) {
     return result?.simulation?.id || result?.simulation_id || null
 }
 
+function extractSimulationTransaction(result) {
+    return result?.transaction || result?.simulation?.transaction || result?.simulation || null
+}
+
+function extractSimulationAssetChanges(result) {
+    return (
+        extractSimulationTransaction(result)?.transaction_info?.asset_changes ||
+        result?.asset_changes ||
+        result?.simulation?.asset_changes ||
+        null
+    )
+}
+
+function extractSimulationBalanceChanges(result) {
+    return (
+        extractSimulationTransaction(result)?.transaction_info?.balance_changes ||
+        result?.balance_changes ||
+        result?.simulation?.balance_changes ||
+        null
+    )
+}
+
+function extractSimulationLogs(result) {
+    const tx = extractSimulationTransaction(result)
+    const candidates = [
+        tx?.logs,
+        tx?.receipt?.logs,
+        result?.logs,
+        result?.receipt?.logs,
+        result?.simulation?.receipt?.logs,
+    ]
+    for (const candidate of candidates) {
+        if (Array.isArray(candidate)) return candidate
+    }
+    return []
+}
+
+function extractSimulationBlockNumber(result) {
+    const tx = extractSimulationTransaction(result)
+    const candidates = [
+        tx?.block_number,
+        tx?.blockNumber,
+        result?.block_number,
+        result?.blockNumber,
+        result?.simulation?.block_number,
+        result?.simulation?.blockNumber,
+    ]
+    for (const candidate of candidates) {
+        const num = Number(candidate)
+        if (Number.isFinite(num) && num > 0) return num
+    }
+    return null
+}
+
+function extractSimulationTimestamp(result) {
+    const tx = extractSimulationTransaction(result)
+    const candidates = [
+        tx?.timestamp,
+        tx?.block_timestamp,
+        tx?.blockTimestamp,
+        tx?.transaction_info?.timestamp,
+        result?.simulation?.block_header?.timestamp,
+        result?.simulation?.block?.timestamp,
+    ]
+    for (const candidate of candidates) {
+        const num = Number(candidate)
+        if (Number.isFinite(num) && num > 0) return num
+    }
+    return null
+}
+
 function extractShareUrl(result) {
     return (
         result?.share_url ||
@@ -152,9 +223,28 @@ async function simulateTenderly({
         } catch (err) {}
     }
 
-    return { result, status, simulationId, publicUrl, dashboardUrl, url }
+    return {
+        result,
+        status,
+        simulationId,
+        publicUrl,
+        dashboardUrl,
+        url,
+        transaction: extractSimulationTransaction(result),
+        assetChanges: extractSimulationAssetChanges(result),
+        balanceChanges: extractSimulationBalanceChanges(result),
+        logs: extractSimulationLogs(result),
+        blockNumber: extractSimulationBlockNumber(result),
+        timestamp: extractSimulationTimestamp(result),
+    }
 }
 
 module.exports = {
+    extractSimulationAssetChanges,
+    extractSimulationBalanceChanges,
+    extractSimulationBlockNumber,
+    extractSimulationLogs,
+    extractSimulationTimestamp,
+    extractSimulationTransaction,
     simulateTenderly,
 }
