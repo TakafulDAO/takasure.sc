@@ -12,8 +12,8 @@
  *      - Record one sampled snapshot per check:
  *        - which side of the range the position is on (`in range`, `below`, `above`)
  *        - the current inventory split between underlying and `otherToken`
- *      - Rebalance through the `ordinary` path when the position is currently out of range and inventory
- *        has been 95/5 one-sided or worse for 24 consecutive observed hours.
+ *      - Rebalance through the `ordinary` path when inventory has been 95/5 one-sided or worse
+ *        for 24 consecutive observed hours.
  *      - Otherwise, rebalance through the `oscillation` path only when:
  *        - the position is currently out of range,
  *        - it has spent at least 18 observed hours of the last 72 hours on the same out-of-range side, and
@@ -21,8 +21,7 @@
  *      - Both rebalance paths are additionally guarded by a peg check:
  *        - spot must be within the configured 5-10 bps peg guard, and
  *        - spot must be within the configured 5-10 bps distance from a strict 30-minute TWAP.
- *      - When peg guard blocks an otherwise valid rebalance candidate, the upkeep also skips invest for
- *        that run so new capital is not deployed during an intentional depeg pause.
+ *      - Rebalance can be fully disabled, or switched into an event-only dry-run mode.
  * @dev Sampling and duration calculations are intentionally conservative. Time only accrues between adjacent
  *      samples that confirm the same condition. With a 6-hour rebalance cadence, the 18-hour oscillation
  *      threshold can be measured directly.
@@ -116,7 +115,7 @@ contract SaveFundsInvestAutomationRunner is
 
     uint256 public rebalanceCheckInterval;
     uint256 public lastRebalanceCheck;
-    uint256 public lastSuccessfulRebalance; // Bookkeeping only
+    uint256 public lastSuccessfulRebalance;
     bool public rebalanceEnabled;
     uint8 internal rebalanceSampleCount;
     uint8 internal rebalanceSampleHead;
@@ -128,6 +127,7 @@ contract SaveFundsInvestAutomationRunner is
     uint8[REBALANCE_SAMPLE_CAP] internal rebalanceSampleRangeSides;
     uint16[REBALANCE_SAMPLE_CAP] internal rebalanceSampleInventoryOtherRatioBPS;
     uint16 internal rebalancePegGuardBPS;
+    bool public rebalanceEventOnly;
 
     /// @dev One sampled rebalance snapshot. "What do we see right now?"
     struct RebalanceObservation {
@@ -153,6 +153,7 @@ contract SaveFundsInvestAutomationRunner is
     event OnUpkeepAttempt(uint256 ts, uint256 idleAssets, uint16 otherRatioBPS, bytes32 bundleHash);
     event OnInvestSucceeded(uint256 ts, uint256 requestedAssets, uint256 investedAssets, uint16 otherRatioBPS);
     event OnInvestFailed(uint256 ts, bytes reason);
+    event OnRebalanceNeeded(uint256 ts, uint8 triggerPath);
     event OnRebalanceSucceeded(
         uint256 ts, int24 currentTick, int24 newTickLower, int24 newTickUpper, uint16 otherRatioBPS
     );
@@ -337,6 +338,15 @@ contract SaveFundsInvestAutomationRunner is
     }
 
     /**
+     * @notice Toggles event-only mode for rebalance automation.
+     * @dev When enabled together with `rebalanceEnabled`, the runner emits `OnRebalanceNeeded`
+     *      instead of calling the aggregator rebalance entrypoint.
+     */
+    function toggleRebalanceOnlyEvent() external onlyOwner whenNotPaused {
+        rebalanceEventOnly = !rebalanceEventOnly;
+    }
+
+    /**
      * @notice Toggles automatic ratio computation for invest payloads.
      * @dev When disabled, `manualOtherRatioBPS` is used for both preview and invest execution.
      */
@@ -406,53 +416,14 @@ contract SaveFundsInvestAutomationRunner is
 
     /**
      * @notice Manually seeds the latest successful rebalance timestamp.
-     * @dev This no longer participates in trigger gating, but it remains useful for operator
-     *      bookkeeping and continuity when migrating an already-operated strategy.
+     * @dev This also resets rebalance observation state so operators can anchor the next
+     *      automation cycle to a known manual rebalance.
      * @param ts Timestamp to store as the latest successful rebalance time.
      */
     function setLastSuccessfulRebalance(uint256 ts) external onlyOwner {
         lastSuccessfulRebalance = ts;
-    }
-
-    /**
-     * @notice Seeds the rebalance scenario used by the next upkeep evaluation.
-     * @dev This is the operator-facing shortcut for "make the live runner reflect the situation
-     *      we already know exists off-chain". `lastSuccessfulRebalance` is kept as a separate
-     *      setter because it is bookkeeping-only, while this function focuses on the trigger state:
-     *      - `lastRebalanceCheck` opens or delays the next rebalance sampling window
-     *      - `packedSamples` replaces the active rebalance sample history oldest-to-newest
-     *
-     *      Each sample packs `{timestamp:uint40, rangeSide:uint8, inventoryOtherRatioBPS:uint16}`
-     *      into one `uint64` as `(timestamp << 24) | (rangeSide << 16) | inventoryOtherRatioBPS`.
-     *      Passing an empty array clears the active sample window without paying to zero every
-     *      inactive slot, which keeps this operator hook smaller and cheaper.
-     * @param ts Timestamp to store as `lastRebalanceCheck`.
-     * @param packedSamples Packed rebalance samples supplied oldest-to-newest.
-     */
-    function seedRebalanceScenario(uint256 ts, uint64[] calldata packedSamples) external onlyOwner {
         lastRebalanceCheck = ts;
-
-        uint256 _len = packedSamples.length;
-        if (_len > REBALANCE_SAMPLE_CAP) revert SaveFundsInvestAutomationRunner__OutOfRange();
-
-        uint40 _previousTs;
-        for (uint256 i; i < _len; ++i) {
-            uint64 _packed = packedSamples[i];
-            uint40 _sampleTs = uint40(_packed >> 24);
-            uint8 _rangeSide = uint8(_packed >> 16);
-
-            if (_rangeSide > RANGE_SIDE_ABOVE) revert SaveFundsInvestAutomationRunner__OutOfRange();
-            if (i != 0 && _sampleTs <= _previousTs) revert SaveFundsInvestAutomationRunner__OutOfRange();
-
-            rebalanceSampleTimestamps[i] = _sampleTs;
-            rebalanceSampleOutOfRange[i] = _rangeSide != RANGE_SIDE_IN_RANGE;
-            rebalanceSampleRangeSides[i] = _rangeSide;
-            rebalanceSampleInventoryOtherRatioBPS[i] = uint16(_packed);
-            _previousTs = _sampleTs;
-        }
-
-        rebalanceSampleCount = uint8(_len);
-        rebalanceSampleHead = uint8(_len % REBALANCE_SAMPLE_CAP);
+        _clearRebalanceSamples();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -513,8 +484,7 @@ contract SaveFundsInvestAutomationRunner is
      *      the contract recomputes all safety checks at execution time.
      *      The execution order is:
      *      1. optionally sample and evaluate rebalance
-     *      2. stop entirely if rebalance failed or peg guard intentionally blocked it
-     *      3. only then continue into the normal invest flow
+     *      2. continue into the normal invest flow when its own conditions are met
      */
     function performUpkeep(bytes calldata) external {
         if (paused()) return;
@@ -533,8 +503,7 @@ contract SaveFundsInvestAutomationRunner is
             }
         }
 
-        // Rebalance failure short-circuits the upkeep so the runner does not add new capital into a position it just failed to move.
-        if (rebalanceCheckNeeded && _observeAndMaybeRebalance()) return;
+        if (rebalanceCheckNeeded) _observeAndMaybeRebalance();
 
         if (!investWindowOpen) return;
 
@@ -722,19 +691,16 @@ contract SaveFundsInvestAutomationRunner is
     }
 
     /**
-     * @notice Records the latest rebalance observation and executes rebalance when rules are met.
-     * @dev Returns `true` when the upkeep should stop before the invest branch. That includes
-     *      both a failed rebalance attempt and a rebalance candidate blocked by peg guard.
-     *      The evaluation flow is:
+     * @notice Records the latest rebalance observation and handles rebalance when rules are met.
+     * @dev The evaluation flow is:
      *      1. sample current range side + inventory ratio
      *      2. update the ring buffer
      *      3. measure ordinary-path and oscillation-path durations from sampled history
      *      4. choose the trigger path, if any
      *      5. apply peg guard only after a path is otherwise valid
-     *      6. execute rebalance if the path survives peg guard
-     * @return skipInvest_ True when the caller should skip the invest branch for this upkeep.
+     *      6. execute rebalance, or emit `OnRebalanceNeeded` in event-only mode, if the path survives peg guard
      */
-    function _observeAndMaybeRebalance() internal returns (bool skipInvest_) {
+    function _observeAndMaybeRebalance() internal {
         lastRebalanceCheck = block.timestamp;
 
         // Sample the live range side and inventory composition first so all downstream decisions
@@ -742,7 +708,7 @@ contract SaveFundsInvestAutomationRunner is
         RebalanceObservation memory _observation = _currentRebalanceObservation();
         _recordRebalanceSample(_observation.rangeSide, _observation.inventoryOtherRatioBPS);
 
-        // Ordinary path: 24h consecutive 95/5-or-worse inventory while out of range.
+        // Ordinary path: 24h consecutive 95/5-or-worse inventory.
         uint256 _ordinaryInventoryObserved = _consecutiveInventoryOneSidedObserved(REBALANCE_ORDINARY_ONE_SIDED_BPS);
         // Oscillation path: 24h consecutive 80/20-or-worse inventory plus same-side history inside 72h.
         uint256 _oscillationInventoryObserved =
@@ -753,14 +719,14 @@ contract SaveFundsInvestAutomationRunner is
             _observation.rangeSide, _ordinaryInventoryObserved, _sameSideObserved, _oscillationInventoryObserved
         );
 
-        // Peg guard is only meaningful once a path already qualifies.
-        PegGuardStatus memory _pegGuard;
-        if (_triggerPath != REBALANCE_PATH_NONE) _pegGuard = _evaluatePegGuard();
-        if (_triggerPath == REBALANCE_PATH_NONE) return false;
+        if (_triggerPath == REBALANCE_PATH_NONE) return;
+        PegGuardStatus memory _pegGuard = _evaluatePegGuard();
+        if (!_pegGuard.passed) return;
 
-        if (!_pegGuard.passed) {
-            // This is an intentional skip. Still stop the investment because the rebalance was considered unsafe due to peg conditions.
-            return true;
+        if (rebalanceEventOnly) {
+            _clearRebalanceSamples();
+            emit OnRebalanceNeeded(block.timestamp, _triggerPath);
+            return;
         }
 
         // Compute the next band from the live monitoring tick, then reuse the invest ratio
@@ -777,7 +743,6 @@ contract SaveFundsInvestAutomationRunner is
                 block.timestamp, _observation.currentTick, _newTickLower, _newTickUpper, _otherRatioBPS
             );
         } catch (bytes memory reason) {
-            skipInvest_ = true;
             emit OnRebalanceFailed(
                 block.timestamp, _observation.currentTick, _newTickLower, _newTickUpper, _otherRatioBPS, reason
             );
@@ -786,22 +751,15 @@ contract SaveFundsInvestAutomationRunner is
 
     /**
      * @notice Determines whether a new rebalance observation should be sampled now.
-     * @dev The runner keeps sampling while the position is currently out of range or when there
-     *      is recent out-of-range history inside the rolling window.
-     *      That second branch is what lets the oscillation rule continue accumulating evidence
-     *      even after the price briefly returns inside the band.
+     * @dev Sampling is always cadence-driven while rebalance automation is enabled so the
+     *      ordinary one-sided rule can be observed even before the position fully leaves the band.
      * @return True when the rebalance observer should run.
      */
     function _shouldCheckRebalance() internal view returns (bool) {
         if (!rebalanceEnabled) return false;
+        if (rebalanceCheckInterval == 0) return false;
         if (block.timestamp < lastRebalanceCheck + rebalanceCheckInterval) return false;
-
-        // Continue sampling after the position comes back in range so the oscillation rule
-        // can still be evaluated from recent history.
-        (uint8 _rangeSide,,,) = _currentRangeStatus();
-        if (_rangeSide != RANGE_SIDE_IN_RANGE) return true;
-
-        return _hasRecentOutOfRangeSample(block.timestamp - REBALANCE_WINDOW);
+        return true;
     }
 
     /**
@@ -1029,8 +987,8 @@ contract SaveFundsInvestAutomationRunner is
         uint256 _sameSideObserved,
         uint256 _oscillationInventoryObserved
     ) internal pure returns (uint8 triggerPath_) {
-        if (_rangeSide == RANGE_SIDE_IN_RANGE) return REBALANCE_PATH_NONE;
         if (_ordinaryInventoryObserved >= REBALANCE_CONSECUTIVE_TRIGGER) return REBALANCE_PATH_ORDINARY;
+        if (_rangeSide == RANGE_SIDE_IN_RANGE) return REBALANCE_PATH_NONE;
         if (_sameSideObserved < REBALANCE_OSCILLATION_SIDE_TRIGGER) return REBALANCE_PATH_NONE;
         if (_oscillationInventoryObserved < REBALANCE_CONSECUTIVE_TRIGGER) return REBALANCE_PATH_NONE;
         return REBALANCE_PATH_OSCILLATION;
@@ -1455,29 +1413,20 @@ contract SaveFundsInvestAutomationRunner is
 
     /**
      * @notice Seeds rebalance-specific runtime state for the upgrade.
-     * @dev The state is initialized so the first upkeep after an upgrade can immediately
-     *      rebalance if the live position already qualifies under the new rules:
-     *      - the rebalance check window is already open using the 6-hour default rebalance cadence
-     *      - one synthetic sample is seeded 24 hours in the past using the live side and inventory ratio
-     *      - the historical Arbitrum One last successful rebalance timestamp is preserved for bookkeeping
-     *      The seeded sample mirrors the live snapshot at initialization time so first-upkeep
-     *      depends on real conditions. The appended rebalance storage starts zeroed on the live
-     *      proxy, so there is no need to pay to clear the ring buffer here before writing slot `0`.
+     * @dev The state is initialized conservatively for staged rollout:
+     *      - the 6-hour default rebalance cadence is configured
+     *      - rebalance automation starts disabled
+     *      - event-only mode starts disabled
+     *      - historical samples are cleared
+     *      - the latest known Arbitrum One rebalance timestamp is preserved
      */
     function _initializeRebalanceState() internal {
-        RebalanceObservation memory _observation = _currentRebalanceObservation();
-
         rebalanceCheckInterval = REBALANCE_MIN_INTERVAL;
-        lastRebalanceCheck = block.timestamp - REBALANCE_MIN_INTERVAL;
+        lastRebalanceCheck = block.timestamp;
         lastSuccessfulRebalance = 1_774_106_444; // March 21 rebalance.
-        rebalanceEnabled = true;
-        rebalanceSampleCount = 1;
-        rebalanceSampleHead = 1;
-
-        rebalanceSampleTimestamps[0] = uint40(block.timestamp - REBALANCE_CONSECUTIVE_TRIGGER);
-        rebalanceSampleOutOfRange[0] = _observation.rangeSide != RANGE_SIDE_IN_RANGE;
-        rebalanceSampleRangeSides[0] = _observation.rangeSide;
-        rebalanceSampleInventoryOtherRatioBPS[0] = _observation.inventoryOtherRatioBPS;
+        rebalanceEnabled = false;
+        rebalanceEventOnly = false;
+        _clearRebalanceSamples();
     }
 
     function _authorizeUpgrade(address) internal view override onlyOwner {}

@@ -31,6 +31,7 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
     bytes32 internal constant ON_UPKEEP_ATTEMPT_SIG = keccak256("OnUpkeepAttempt(uint256,uint256,uint16,bytes32)");
     bytes32 internal constant ON_INVEST_SUCCEEDED_SIG = keccak256("OnInvestSucceeded(uint256,uint256,uint256,uint16)");
     bytes32 internal constant ON_INVEST_FAILED_SIG = keccak256("OnInvestFailed(uint256,bytes)");
+    bytes32 internal constant ON_REBALANCE_NEEDED_SIG = keccak256("OnRebalanceNeeded(uint256,uint8)");
     bytes32 internal constant ON_UPKEEP_SKIPPED_PAUSED_SIG = keccak256("OnUpkeepSkippedPaused(uint256)");
     bytes32 internal constant ON_UPKEEP_SKIPPED_LOW_IDLE_SIG = keccak256("OnUpkeepSkippedLowIdle(uint256,uint256,uint256)");
 
@@ -111,9 +112,10 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         upgradeRunner.initializeV2();
 
         assertEq(upgradeRunner.rebalanceCheckInterval(), 6 hours);
-        assertEq(upgradeRunner.lastRebalanceCheck(), block.timestamp - 6 hours);
+        assertEq(upgradeRunner.lastRebalanceCheck(), block.timestamp);
         assertEq(upgradeRunner.lastSuccessfulRebalance(), ARBITRUM_ONE_LAST_SUCCESSFUL_REBALANCE);
-        assertTrue(upgradeRunner.rebalanceEnabled());
+        assertFalse(upgradeRunner.rebalanceEnabled());
+        assertFalse(upgradeRunner.rebalanceEventOnly());
     }
 
     function testRunnerFork_setInterval_BelowDaily_RevertsWhenTestModeDisabled() public {
@@ -141,6 +143,14 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         if (!runner.testMode()) runner.toggleTestMode();
         runner.setRebalanceCheckInterval(1 hours);
         assertEq(runner.rebalanceCheckInterval(), 1 hours);
+    }
+
+    function testRunnerFork_toggleRebalanceOnlyEvent() public {
+        assertFalse(runner.rebalanceEventOnly());
+        runner.toggleRebalanceOnlyEvent();
+        assertTrue(runner.rebalanceEventOnly());
+        runner.toggleRebalanceOnlyEvent();
+        assertFalse(runner.rebalanceEventOnly());
     }
 
     function testRunnerFork_setManualOtherRatioBPS_RevertsAboveMax() public {
@@ -198,6 +208,7 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
 
         (int24 outLower, int24 outUpper) = _outOfRangeTicksAboveCurrent();
         _setStrategyRange(outLower, outUpper, 5_000);
+        vm.warp(block.timestamp + runner.rebalanceCheckInterval() + 1);
 
         (bool upkeepNeeded, bytes memory performData) = runner.checkUpkeep("");
         (uint256 idleFromData, bool investNeeded, bool rebalanceCheckNeeded) =
@@ -425,67 +436,48 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         uint256 seededTs = block.timestamp - 8 days;
         runner.setLastSuccessfulRebalance(seededTs);
         assertEq(runner.lastSuccessfulRebalance(), seededTs);
-    }
-
-    function testRunnerFork_seedRebalanceScenario_SetsLastRebalanceCheck() public {
-        uint256 seededTs = block.timestamp - 3 hours;
-        uint64[] memory samples = new uint64[](0);
-        runner.seedRebalanceScenario(seededTs, samples);
         assertEq(runner.lastRebalanceCheck(), seededTs);
     }
 
-    function testRunnerFork_seedRebalanceScenario_RevertsOnInvalidInput() public {
-        uint64[] memory samples = new uint64[](17);
-        vm.expectRevert(SaveFundsInvestAutomationRunner.SaveFundsInvestAutomationRunner__OutOfRange.selector);
-        runner.seedRebalanceScenario(block.timestamp, samples);
-
-        samples = new uint64[](2);
-        samples[0] = _packRebalanceSample(uint40(block.timestamp - 24 hours), 1, 9_500);
-        samples[1] = _packRebalanceSample(uint40(block.timestamp - 12 hours), 3, 9_700);
-        vm.expectRevert(SaveFundsInvestAutomationRunner.SaveFundsInvestAutomationRunner__OutOfRange.selector);
-        runner.seedRebalanceScenario(block.timestamp, samples);
-
-        samples[1] = _packRebalanceSample(uint40(block.timestamp - 24 hours), 1, 9_700);
-        vm.expectRevert(SaveFundsInvestAutomationRunner.SaveFundsInvestAutomationRunner__OutOfRange.selector);
-        runner.seedRebalanceScenario(block.timestamp, samples);
-    }
-
-    function testRunnerFork_harness_SeedRebalanceScenario_SetsAndClearsHistory() public {
+    function testRunnerFork_harness_ObserveAndMaybeRebalance_EmitsEventOnly() public {
         SaveFundsInvestAutomationRunnerHarness harness = new SaveFundsInvestAutomationRunnerHarness();
+        MockPoolForRunnerHarness poolMock = new MockPoolForRunnerHarness();
+        MockStrategyAutomationView strategyMock = new MockStrategyAutomationView();
 
-        uint64[] memory samples = new uint64[](3);
-        uint40 ts0 = uint40(block.timestamp - 72 hours);
-        uint40 ts1 = uint40(block.timestamp - 36 hours);
-        uint40 ts2 = uint40(block.timestamp - 6 hours);
+        poolMock.setTokens(address(asset), address(uniV3.otherToken()));
+        poolMock.setFee(100);
+        poolMock.setTickSpacing(1);
+        poolMock.setSlot0(1 << 96, 11);
+        poolMock.setObserve(0, 0, false);
+        strategyMock.setTicks(0, 10);
+        strategyMock.setTwapWindow(30);
+        deal(address(uniV3.otherToken()), address(strategyMock), 100e6);
+        harness.setHarnessConfig(
+            address(poolMock), address(strategyMock), address(asset), address(uniV3.otherToken()), false
+        );
+        harness.setHarnessRebalanceEventOnly(true);
 
-        samples[0] = _packRebalanceSample(ts0, 1, 9_600);
-        samples[1] = _packRebalanceSample(ts1, 1, 9_700);
-        samples[2] = _packRebalanceSample(ts2, 2, 8_400);
+        uint256 start = block.timestamp + 1;
+        vm.warp(start);
+        harness.exposedRecordRebalanceSample(2, 100);
+        vm.warp(start + 24 hours);
 
-        harness.exposedSeedRebalanceScenario(block.timestamp - 3 hours, samples);
+        vm.recordLogs();
+        harness.exposedObserveAndMaybeRebalance();
+        Vm.Log[] memory logs = vm.getRecordedLogs();
 
-        assertEq(harness.exposedRebalanceSampleCount(), 3);
-        assertEq(harness.exposedRebalanceSampleHead(), 3);
-        assertEq(harness.exposedLastRebalanceCheck(), block.timestamp - 3 hours);
-        assertEq(harness.exposedRebalanceSampleTimestamp(0), ts0);
-        assertEq(harness.exposedRebalanceSampleTimestamp(1), ts1);
-        assertEq(harness.exposedRebalanceSampleTimestamp(2), ts2);
-        assertTrue(harness.exposedRebalanceSampleOutOfRange(0));
-        assertTrue(harness.exposedRebalanceSampleOutOfRange(1));
-        assertTrue(harness.exposedRebalanceSampleOutOfRange(2));
-        assertEq(harness.exposedRebalanceSampleRangeSide(0), 1);
-        assertEq(harness.exposedRebalanceSampleRangeSide(1), 1);
-        assertEq(harness.exposedRebalanceSampleRangeSide(2), 2);
-        assertEq(harness.exposedRebalanceSampleInventoryOtherRatioBPS(0), 9_600);
-        assertEq(harness.exposedRebalanceSampleInventoryOtherRatioBPS(1), 9_700);
-        assertEq(harness.exposedRebalanceSampleInventoryOtherRatioBPS(2), 8_400);
+        bool foundRebalanceNeeded;
+        uint8 triggerPath;
+        for (uint256 i; i < logs.length; ++i) {
+            if (logs[i].emitter == address(harness) && logs[i].topics.length > 0 && logs[i].topics[0] == ON_REBALANCE_NEEDED_SIG) {
+                foundRebalanceNeeded = true;
+                (, triggerPath) = abi.decode(logs[i].data, (uint256, uint8));
+            }
+        }
 
-        uint64[] memory emptySamples = new uint64[](0);
-        harness.exposedSeedRebalanceScenario(block.timestamp - 1 hours, emptySamples);
-
-        assertEq(harness.exposedRebalanceSampleCount(), 0);
-        assertEq(harness.exposedRebalanceSampleHead(), 0);
-        assertEq(harness.exposedLastRebalanceCheck(), block.timestamp - 1 hours);
+        assertTrue(foundRebalanceNeeded, "rebalance-needed event missing");
+        assertEq(triggerPath, 1, "ordinary path expected");
+        assertEq(harness.exposedRebalanceSampleCount(), 0, "event-only path should reset samples");
     }
 
     function testRunnerFork_harness_ObserveAndMaybeRebalance_BlocksCandidateOnPegGuard() public {
@@ -509,7 +501,8 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         harness.exposedRecordRebalanceSample(2, 100);
         vm.warp(start + 24 hours);
 
-        assertTrue(harness.exposedObserveAndMaybeRebalance(), "peg guard should block the rebalance candidate");
+        harness.exposedObserveAndMaybeRebalance();
+        assertEq(harness.exposedRebalanceSampleCount(), 2, "peg guard should keep the sampled history intact");
     }
 
     function testRunnerFork_runnerInventoryRatio_MatchesManualLiveValuation() public {
@@ -630,12 +623,13 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         );
         harness.exposedInitializeRebalanceState();
 
-        assertEq(harness.exposedRebalanceSampleCount(), 1);
-        assertEq(harness.exposedRebalanceSampleHead(), 1);
-        assertEq(harness.exposedRebalanceSampleTimestamp(0), block.timestamp - 24 hours);
-        assertFalse(harness.exposedRebalanceSampleOutOfRange(0));
-        assertEq(harness.exposedRebalanceSampleRangeSide(0), 0);
-        assertEq(harness.exposedRebalanceSampleInventoryOtherRatioBPS(0), 4_500);
+        assertEq(harness.rebalanceCheckInterval(), 6 hours);
+        assertEq(harness.exposedLastRebalanceCheck(), block.timestamp);
+        assertEq(harness.lastSuccessfulRebalance(), ARBITRUM_ONE_LAST_SUCCESSFUL_REBALANCE);
+        assertFalse(harness.rebalanceEnabled());
+        assertFalse(harness.rebalanceEventOnly());
+        assertEq(harness.exposedRebalanceSampleCount(), 0);
+        assertEq(harness.exposedRebalanceSampleHead(), 0);
         assertEq(harness.exposedConsecutiveInventoryOneSidedObserved(2_000), 0);
         assertEq(harness.exposedRollingSameSideObserved(1, block.timestamp - 1 days), 0);
         assertFalse(harness.exposedHasRecentOutOfRangeSample(block.timestamp - 2 days));
@@ -653,7 +647,7 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         assertEq(harness.exposedRollingSameSideObserved(1, 250), 50);
         assertTrue(harness.exposedHasRecentOutOfRangeSample(250));
 
-        assertEq(harness.exposedRebalanceTriggerPath(0, 24 hours, 24 hours, 24 hours), 0);
+        assertEq(harness.exposedRebalanceTriggerPath(0, 24 hours, 24 hours, 24 hours), 1);
         assertEq(harness.exposedRebalanceTriggerPath(1, 24 hours, 0, 0), 1);
         assertEq(harness.exposedRebalanceTriggerPath(1, 0, 17 hours, 24 hours), 0);
         assertEq(harness.exposedRebalanceTriggerPath(1, 0, 18 hours, 24 hours), 2);
@@ -722,10 +716,6 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         assertTrue(harness.exposedShouldCheckRebalance());
 
         strategyMock.setTicks(0, 20);
-        assertFalse(harness.exposedShouldCheckRebalance());
-
-        vm.warp(block.timestamp + 1);
-        harness.exposedRecordRebalanceSample(1, 1_500);
         assertTrue(harness.exposedShouldCheckRebalance());
 
         poolMock.setSlot0(1 << 96, 0);
@@ -1056,13 +1046,6 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         return q * spacing;
     }
 
-    function _packRebalanceSample(uint40 timestamp, uint8 rangeSide, uint16 inventoryOtherRatioBPS)
-        internal
-        pure
-        returns (uint64)
-    {
-        return (uint64(timestamp) << 24) | (uint64(rangeSide) << 16) | uint64(inventoryOtherRatioBPS);
-    }
 }
 
 contract AddressGetter is GetContractAddress {
@@ -1138,30 +1121,8 @@ contract SaveFundsInvestAutomationRunnerHarness is SaveFundsInvestAutomationRunn
         rebalancePegGuardBPS = bps;
     }
 
-    function exposedSeedRebalanceScenario(uint256 ts, uint64[] calldata packedSamples) external {
-        lastRebalanceCheck = ts;
-
-        uint256 _len = packedSamples.length;
-        if (_len > REBALANCE_SAMPLE_CAP) revert SaveFundsInvestAutomationRunner__OutOfRange();
-
-        uint40 _previousTs;
-        for (uint256 i; i < _len; ++i) {
-            uint64 _packed = packedSamples[i];
-            uint40 _sampleTs = uint40(_packed >> 24);
-            uint8 _rangeSide = uint8(_packed >> 16);
-
-            if (_rangeSide > RANGE_SIDE_ABOVE) revert SaveFundsInvestAutomationRunner__OutOfRange();
-            if (i != 0 && _sampleTs <= _previousTs) revert SaveFundsInvestAutomationRunner__OutOfRange();
-
-            rebalanceSampleTimestamps[i] = _sampleTs;
-            rebalanceSampleOutOfRange[i] = _rangeSide != RANGE_SIDE_IN_RANGE;
-            rebalanceSampleRangeSides[i] = _rangeSide;
-            rebalanceSampleInventoryOtherRatioBPS[i] = uint16(_packed);
-            _previousTs = _sampleTs;
-        }
-
-        rebalanceSampleCount = uint8(_len);
-        rebalanceSampleHead = uint8(_len % REBALANCE_SAMPLE_CAP);
+    function setHarnessRebalanceEventOnly(bool enabled) external {
+        rebalanceEventOnly = enabled;
     }
 
     function exposedClearRebalanceSamples() external {
@@ -1258,8 +1219,8 @@ contract SaveFundsInvestAutomationRunnerHarness is SaveFundsInvestAutomationRunn
         return _shouldCheckRebalance();
     }
 
-    function exposedObserveAndMaybeRebalance() external returns (bool) {
-        return _observeAndMaybeRebalance();
+    function exposedObserveAndMaybeRebalance() external {
+        _observeAndMaybeRebalance();
     }
 }
 

@@ -17,14 +17,24 @@ Contract:
 ### Core behavior
 
 - Time-gated by `interval` and `lastRun`.
+- Rebalance observation is time-gated independently by `rebalanceCheckInterval` and `lastRebalanceCheck`.
 - Defaults:
 - `interval = 24 hours`
 - `skipIfPaused = true`
 - `strictUniOnlyAllocation = true`
 - `useAutoOtherRatio = true`
 - `testMode = false`
+- `rebalanceEnabled = false` after `initializeV2()`
+- `rebalanceEventOnly = false` after `initializeV2()`
 - `checkUpkeep` returns false when paused, interval not reached, dependencies paused (if enabled), allocation check fails (if enabled), or idle assets are below `minIdleAssets`.
-- `performUpkeep` emits attempt/success/failure/skip events and updates `lastRun` on execution paths.
+- `performUpkeep` can sample rebalance state and still continue into invest when invest conditions are met.
+
+### Rebalance modes
+
+- `toggleRebalanceEnabled()` turns rebalance observation/execution on or off.
+- `toggleRebalanceOnlyEvent()` turns dry-run mode on or off.
+- When both flags are true, upkeep emits `OnRebalanceNeeded(uint256,uint8)` instead of calling aggregator rebalance.
+- `setLastSuccessfulRebalance(ts)` updates bookkeeping and also resets rebalance observation state so the next cycle starts from that timestamp.
 
 ### Interval and test mode
 
