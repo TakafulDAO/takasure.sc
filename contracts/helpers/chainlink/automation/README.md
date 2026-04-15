@@ -35,6 +35,8 @@ Contract:
 - `toggleRebalanceOnlyEvent()` turns dry-run mode on or off.
 - When both flags are true, upkeep emits `OnRebalanceNeeded(uint256,uint8)` instead of calling aggregator rebalance.
 - `setLastSuccessfulRebalance(ts)` updates bookkeeping and also resets rebalance observation state so the next cycle starts from that timestamp.
+- When a rebalance candidate exists, upkeep tries rebalance first and skips invest unless that rebalance completes successfully.
+- Peg guard also blocks fresh investment, even when no rebalance candidate is active.
 
 ### Interval and test mode
 

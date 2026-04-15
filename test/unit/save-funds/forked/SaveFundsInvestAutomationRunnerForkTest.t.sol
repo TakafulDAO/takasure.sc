@@ -463,7 +463,7 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         vm.warp(start + 24 hours);
 
         vm.recordLogs();
-        harness.exposedObserveAndMaybeRebalance();
+        bool skipInvest = harness.exposedObserveAndMaybeRebalance();
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
         bool foundRebalanceNeeded;
@@ -477,6 +477,7 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
 
         assertTrue(foundRebalanceNeeded, "rebalance-needed event missing");
         assertEq(triggerPath, 1, "ordinary path expected");
+        assertTrue(skipInvest, "event-only mode should skip invest");
         assertEq(harness.exposedRebalanceSampleCount(), 0, "event-only path should reset samples");
     }
 
@@ -501,7 +502,8 @@ contract SaveFundsInvestAutomationRunnerForkTest is Test {
         harness.exposedRecordRebalanceSample(2, 100);
         vm.warp(start + 24 hours);
 
-        harness.exposedObserveAndMaybeRebalance();
+        bool skipInvest = harness.exposedObserveAndMaybeRebalance();
+        assertTrue(skipInvest, "peg guard should block invest when rebalance candidate exists");
         assertEq(harness.exposedRebalanceSampleCount(), 2, "peg guard should keep the sampled history intact");
     }
 
@@ -1219,8 +1221,8 @@ contract SaveFundsInvestAutomationRunnerHarness is SaveFundsInvestAutomationRunn
         return _shouldCheckRebalance();
     }
 
-    function exposedObserveAndMaybeRebalance() external {
-        _observeAndMaybeRebalance();
+    function exposedObserveAndMaybeRebalance() external returns (bool) {
+        return _observeAndMaybeRebalance();
     }
 }
 

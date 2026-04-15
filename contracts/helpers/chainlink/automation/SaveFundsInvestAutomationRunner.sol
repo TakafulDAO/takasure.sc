@@ -22,6 +22,7 @@
  *        - spot must be within the configured 5-10 bps peg guard, and
  *        - spot must be within the configured 5-10 bps distance from a strict 30-minute TWAP.
  *      - Rebalance can be fully disabled, or switched into an event-only dry-run mode.
+ *      - Peg guard also blocks fresh investment so capital is not deployed during depeg conditions.
  * @dev Sampling and duration calculations are intentionally conservative. Time only accrues between adjacent
  *      samples that confirm the same condition. With a 6-hour rebalance cadence, the 18-hour oscillation
  *      threshold can be measured directly.
@@ -468,9 +469,8 @@ contract SaveFundsInvestAutomationRunner is
             }
         }
 
-        // Rebalance checks run independently from invest cadence so the runner can keep
-        // sampling out-of-range history even when no idle capital is available.
         bool rebalanceCheckNeeded = _shouldCheckRebalance();
+        if (investNeeded && !rebalanceCheckNeeded && !_evaluatePegGuard().passed) investNeeded = false;
         if (!investNeeded && !rebalanceCheckNeeded) return (false, bytes(""));
 
         performData = abi.encode(idle, investNeeded, rebalanceCheckNeeded);
@@ -484,7 +484,9 @@ contract SaveFundsInvestAutomationRunner is
      *      the contract recomputes all safety checks at execution time.
      *      The execution order is:
      *      1. optionally sample and evaluate rebalance
-     *      2. continue into the normal invest flow when its own conditions are met
+     *      2. stop if rebalance is required but did not complete
+     *      3. stop if peg guard blocks fresh deployment
+     *      4. only then continue into the normal invest flow
      */
     function performUpkeep(bytes calldata) external {
         if (paused()) return;
@@ -503,9 +505,10 @@ contract SaveFundsInvestAutomationRunner is
             }
         }
 
-        if (rebalanceCheckNeeded) _observeAndMaybeRebalance();
+        if (rebalanceCheckNeeded && _observeAndMaybeRebalance()) return;
 
         if (!investWindowOpen) return;
+        if (!_evaluatePegGuard().passed) return;
 
         if (strictUniOnlyAllocation && !_isUniOnlyAllocation()) {
             lastRun = block.timestamp;
@@ -699,8 +702,9 @@ contract SaveFundsInvestAutomationRunner is
      *      4. choose the trigger path, if any
      *      5. apply peg guard only after a path is otherwise valid
      *      6. execute rebalance, or emit `OnRebalanceNeeded` in event-only mode, if the path survives peg guard
+     * @return skipInvest_ True when rebalance was required but investment must not continue.
      */
-    function _observeAndMaybeRebalance() internal {
+    function _observeAndMaybeRebalance() internal returns (bool skipInvest_) {
         lastRebalanceCheck = block.timestamp;
 
         // Sample the live range side and inventory composition first so all downstream decisions
@@ -719,14 +723,14 @@ contract SaveFundsInvestAutomationRunner is
             _observation.rangeSide, _ordinaryInventoryObserved, _sameSideObserved, _oscillationInventoryObserved
         );
 
-        if (_triggerPath == REBALANCE_PATH_NONE) return;
+        if (_triggerPath == REBALANCE_PATH_NONE) return false;
         PegGuardStatus memory _pegGuard = _evaluatePegGuard();
-        if (!_pegGuard.passed) return;
+        if (!_pegGuard.passed) return true;
 
         if (rebalanceEventOnly) {
             _clearRebalanceSamples();
             emit OnRebalanceNeeded(block.timestamp, _triggerPath);
-            return;
+            return true;
         }
 
         // Compute the next band from the live monitoring tick, then reuse the invest ratio
@@ -746,6 +750,7 @@ contract SaveFundsInvestAutomationRunner is
             emit OnRebalanceFailed(
                 block.timestamp, _observation.currentTick, _newTickLower, _newTickUpper, _otherRatioBPS, reason
             );
+            return true;
         }
     }
 
